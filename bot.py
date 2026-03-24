@@ -173,7 +173,168 @@ def increment_analysis(user_id: int):
     user_str = str(user_id)
     if user_str in data:
         data[user_str]["analysis_count"] = data[user_str].get("analysis_count", 0) + 1
+        data[user_str]["last_analysis"] = datetime.now().isoformat()
         save_user_data(data)
+
+def record_user_activity(user_id: int, username: str = None, activity: str = "visit"):
+    """Record user activity for admin tracking."""
+    data = load_user_data()
+    user_str = str(user_id)
+    now = datetime.now().isoformat()
+
+    if user_str not in data:
+        data[user_str] = {
+            "premium": False,
+            "premium_until": None,
+            "analysis_count": 0,
+            "promo_used": False,
+            "joined": now,
+        }
+
+    data[user_str]["last_active"] = now
+    data[user_str]["username"] = username or data[user_str].get("username", "Unknown")
+
+    # Track activity log (keep last 5 per user)
+    if "activity_log" not in data[user_str]:
+        data[user_str]["activity_log"] = []
+    data[user_str]["activity_log"].append({"type": activity, "time": now})
+    data[user_str]["activity_log"] = data[user_str]["activity_log"][-5:]
+
+    # Global stats
+    if "__stats__" not in data:
+        data["__stats__"] = {
+            "total_analyses": 0,
+            "total_payments": 0,
+            "total_promo_uses": 0,
+            "daily_analyses": {},
+            "daily_users": {},
+        }
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if activity == "analysis":
+        data["__stats__"]["total_analyses"] = data["__stats__"].get("total_analyses", 0) + 1
+        data["__stats__"]["daily_analyses"][today] = data["__stats__"]["daily_analyses"].get(today, 0) + 1
+
+    if activity == "payment":
+        data["__stats__"]["total_payments"] = data["__stats__"].get("total_payments", 0) + 1
+
+    if activity == "promo":
+        data["__stats__"]["total_promo_uses"] = data["__stats__"].get("total_promo_uses", 0) + 1
+
+    # Track daily unique users
+    if today not in data["__stats__"]["daily_users"]:
+        data["__stats__"]["daily_users"][today] = []
+    if user_str not in data["__stats__"]["daily_users"][today]:
+        data["__stats__"]["daily_users"][today].append(user_str)
+
+    # Clean old daily data (keep last 30 days)
+    for key in ["daily_analyses", "daily_users"]:
+        dates = sorted(data["__stats__"][key].keys())
+        while len(dates) > 30:
+            del data["__stats__"][key][dates.pop(0)]
+
+    save_user_data(data)
+
+
+def get_admin_stats() -> dict:
+    """Get comprehensive stats for admin panel."""
+    data = load_user_data()
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+
+    total_users = 0
+    premium_users = 0
+    active_today = 0
+    active_24h = 0
+    new_today = 0
+    promo_users = 0
+    total_analyses = 0
+    recent_users = []
+
+    for user_str, user_data_item in data.items():
+        if user_str.startswith("__"):
+            continue
+        total_users += 1
+        total_analyses += user_data_item.get("analysis_count", 0)
+
+        # Premium check
+        if user_data_item.get("premium_until"):
+            try:
+                until = datetime.fromisoformat(user_data_item["premium_until"])
+                if until > now:
+                    premium_users += 1
+            except Exception:
+                pass
+
+        # Promo used
+        if user_data_item.get("promo_used"):
+            promo_users += 1
+
+        # Active today
+        last_active = user_data_item.get("last_active")
+        if last_active:
+            try:
+                la = datetime.fromisoformat(last_active)
+                if la.strftime("%Y-%m-%d") == today:
+                    active_today += 1
+                if (now - la).total_seconds() < 86400:
+                    active_24h += 1
+            except Exception:
+                pass
+
+        # New today
+        joined = user_data_item.get("joined")
+        if joined:
+            try:
+                jd = datetime.fromisoformat(joined)
+                if jd.strftime("%Y-%m-%d") == today:
+                    new_today += 1
+            except Exception:
+                pass
+
+        # Recent users list
+        username = user_data_item.get("username", "Unknown")
+        recent_users.append({
+            "id": user_str,
+            "username": username,
+            "analyses": user_data_item.get("analysis_count", 0),
+            "premium": bool(user_data_item.get("premium")),
+            "promo_used": bool(user_data_item.get("promo_used")),
+            "last_active": last_active or joined or "",
+            "joined": joined or "",
+        })
+
+    # Sort by last active
+    recent_users.sort(key=lambda x: x.get("last_active", ""), reverse=True)
+
+    # Global stats
+    stats = data.get("__stats__", {})
+    today_analyses = stats.get("daily_analyses", {}).get(today, 0)
+    today_unique = len(stats.get("daily_users", {}).get(today, []))
+
+    # 7-day analysis trend
+    week_analyses = []
+    for i in range(6, -1, -1):
+        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        count = stats.get("daily_analyses", {}).get(d, 0)
+        day_name = (now - timedelta(days=i)).strftime("%a")
+        week_analyses.append(f"{day_name}: {count}")
+
+    return {
+        "total_users": total_users,
+        "premium_users": premium_users,
+        "active_today": active_today,
+        "active_24h": active_24h,
+        "new_today": new_today,
+        "promo_users": promo_users,
+        "total_analyses": total_analyses,
+        "today_analyses": today_analyses,
+        "today_unique": today_unique,
+        "total_payments": stats.get("total_payments", 0),
+        "week_trend": " | ".join(week_analyses),
+        "recent_users": recent_users[:10],
+    }
 
 
 # ==================== HELPER: BUILD TEXTS ====================
@@ -288,6 +449,8 @@ def _check_premium_access(premium: dict) -> str:
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    record_user_activity(user_id, username, "visit")
     premium = get_user_premium_status(user_id)
     welcome_text = build_start_text(premium)
     reply_markup = build_start_keyboard(premium["is_premium"])
@@ -296,6 +459,165 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_text,
         reply_markup=reply_markup,
     )
+
+
+# ==================== ADMIN PANEL ====================
+
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin panel - only accessible by ADMIN_USER_ID."""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("⛔ Access denied.")
+        return
+
+    stats = get_admin_stats()
+    text = _build_admin_panel_text(stats)
+    keyboard = _build_admin_keyboard()
+    await update.message.reply_text(text, reply_markup=keyboard)
+
+
+def _build_admin_panel_text(stats: dict) -> str:
+    """Build the main admin panel text."""
+    now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    return (
+        f"📊 ADMIN PANEL\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👥 USERS\n"
+        f"├ Total Users: {stats['total_users']}\n"
+        f"├ New Today: {stats['new_today']}\n"
+        f"├ Active Today: {stats['active_today']}\n"
+        f"└ Active (24h): {stats['active_24h']}\n\n"
+        f"💎 PREMIUM\n"
+        f"├ Active Premium: {stats['premium_users']}\n"
+        f"├ Total Payments: {stats['total_payments']}\n"
+        f"└ Promo Used: {stats['promo_users']}\n\n"
+        f"🔍 ANALYSES\n"
+        f"├ Total: {stats['total_analyses']}\n"
+        f"├ Today: {stats['today_analyses']}\n"
+        f"└ Today Unique Users: {stats['today_unique']}\n\n"
+        f"📈 WEEKLY TREND (Analyses)\n"
+        f"{stats['week_trend']}\n\n"
+        f"🕐 Updated: {now}"
+    )
+
+
+def _build_admin_keyboard() -> InlineKeyboardMarkup:
+    """Build admin panel inline keyboard."""
+    keyboard = [
+        [InlineKeyboardButton("🔄 Refresh Stats", callback_data="admin_refresh")],
+        [InlineKeyboardButton("👥 Recent Users", callback_data="admin_users")],
+        [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
+        [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
+        [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
+        [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def _build_recent_users_text(stats: dict) -> str:
+    """Build recent users list text."""
+    text = "👥 RECENT USERS (Last Active)\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    if not stats["recent_users"]:
+        text += "No users yet."
+        return text
+
+    for i, user in enumerate(stats["recent_users"], 1):
+        premium_badge = "💎" if user["premium"] else "⬜"
+        promo_badge = "🎁" if user["promo_used"] else ""
+        username = user["username"] or "Unknown"
+        # Format last active
+        la = user.get("last_active", "")
+        if la:
+            try:
+                la_dt = datetime.fromisoformat(la)
+                la = la_dt.strftime("%d.%m %H:%M")
+            except Exception:
+                la = "N/A"
+        text += (
+            f"{i}. {premium_badge} @{username} {promo_badge}\n"
+            f"   ID: {user['id']} | Analyses: {user['analyses']}\n"
+            f"   Last: {la}\n\n"
+        )
+    return text
+
+
+def _build_premium_users_text(stats: dict) -> str:
+    """Build premium users list."""
+    data = load_user_data()
+    now = datetime.now()
+    text = "💎 PREMIUM USERS\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    count = 0
+
+    for user_str, user_data_item in data.items():
+        if user_str.startswith("__"):
+            continue
+        if user_data_item.get("premium_until"):
+            try:
+                until = datetime.fromisoformat(user_data_item["premium_until"])
+                if until > now:
+                    count += 1
+                    remaining = until - now
+                    days = remaining.days
+                    hours = remaining.seconds // 3600
+                    username = user_data_item.get("username", "Unknown")
+                    text += (
+                        f"{count}. @{username}\n"
+                        f"   ID: {user_str}\n"
+                        f"   Remaining: {days}d {hours}h\n"
+                        f"   Expires: {until.strftime('%d.%m.%Y %H:%M')}\n\n"
+                    )
+            except Exception:
+                pass
+
+    if count == 0:
+        text += "No active premium users."
+    else:
+        text += f"\nTotal: {count} premium user(s)"
+    return text
+
+
+def _build_analytics_text() -> str:
+    """Build detailed analytics text."""
+    data = load_user_data()
+    stats_data = data.get("__stats__", {})
+    now = datetime.now()
+
+    # Daily user counts for last 7 days
+    text = "📊 DETAILED ANALYTICS\n━━━━━━━━━━━━━━━━━━━━\n\n"
+    text += "📅 DAILY BREAKDOWN (Last 7 Days)\n\n"
+    text += f"{'Date':<12} {'Users':<8} {'Analyses':<10}\n"
+    text += f"{'─'*30}\n"
+
+    for i in range(6, -1, -1):
+        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        d_display = (now - timedelta(days=i)).strftime("%d.%m")
+        day_name = (now - timedelta(days=i)).strftime("%a")
+        users = len(stats_data.get("daily_users", {}).get(d, []))
+        analyses = stats_data.get("daily_analyses", {}).get(d, 0)
+        marker = " ◀" if i == 0 else ""
+        text += f"{day_name} {d_display}   {users:<8} {analyses:<10}{marker}\n"
+
+    # Conversion stats
+    total_users = sum(1 for k in data if not k.startswith("__"))
+    promo_users = sum(1 for k, v in data.items() if not k.startswith("__") and v.get("promo_used"))
+    paid_users = stats_data.get("total_payments", 0)
+
+    text += f"\n💰 CONVERSION\n"
+    if total_users > 0:
+        promo_rate = (promo_users / total_users) * 100
+        paid_rate = (paid_users / total_users) * 100
+        text += f"├ Promo Rate: {promo_rate:.1f}% ({promo_users}/{total_users})\n"
+        text += f"└ Paid Rate: {paid_rate:.1f}% ({paid_users}/{total_users})\n"
+    else:
+        text += "├ No data yet\n"
+
+    # Revenue estimate
+    revenue = paid_users * 13.99
+    text += f"\n💵 ESTIMATED REVENUE\n"
+    text += f"└ ~${revenue:.2f} ({paid_users} payment(s))\n"
+
+    text += f"\n🕐 Generated: {now.strftime('%d.%m.%Y %H:%M:%S')}"
+    return text
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -477,6 +799,8 @@ async def promo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Activate free trial and mark as used
     until = activate_premium(user_id, days=PROMO_DAYS)
     mark_promo_used(user_id)
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    record_user_activity(user_id, username, "promo")
     date_str = until.strftime('%d.%m.%Y %H:%M')
 
     keyboard = [
@@ -546,6 +870,8 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
 
     if payment.invoice_payload == "premium_subscription":
         until = activate_premium(user_id, days=PREMIUM_DAYS)
+        username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+        record_user_activity(user_id, username, "payment")
         date_str = until.strftime('%d.%m.%Y %H:%M')
 
         keyboard = [
@@ -662,6 +988,73 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
 
+    # ==================== ADMIN CALLBACKS ====================
+    elif query.data == "admin_refresh":
+        user_id = query.from_user.id
+        if user_id != ADMIN_USER_ID:
+            await query.edit_message_text("\u26d4 Access denied.")
+            return
+        stats = get_admin_stats()
+        text = _build_admin_panel_text(stats)
+        keyboard = _build_admin_keyboard()
+        await query.edit_message_text(text, reply_markup=keyboard)
+
+    elif query.data == "admin_users":
+        user_id = query.from_user.id
+        if user_id != ADMIN_USER_ID:
+            await query.edit_message_text("\u26d4 Access denied.")
+            return
+        stats = get_admin_stats()
+        text = _build_recent_users_text(stats)
+        keyboard = [
+            [InlineKeyboardButton("\ud83d\udd04 Refresh", callback_data="admin_users")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data == "admin_premium_list":
+        user_id = query.from_user.id
+        if user_id != ADMIN_USER_ID:
+            await query.edit_message_text("\u26d4 Access denied.")
+            return
+        stats = get_admin_stats()
+        text = _build_premium_users_text(stats)
+        keyboard = [
+            [InlineKeyboardButton("\ud83d\udd04 Refresh", callback_data="admin_premium_list")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data == "admin_analytics":
+        user_id = query.from_user.id
+        if user_id != ADMIN_USER_ID:
+            await query.edit_message_text("\u26d4 Access denied.")
+            return
+        text = _build_analytics_text()
+        keyboard = [
+            [InlineKeyboardButton("\ud83d\udd04 Refresh", callback_data="admin_analytics")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif query.data == "admin_broadcast_info":
+        user_id = query.from_user.id
+        if user_id != ADMIN_USER_ID:
+            await query.edit_message_text("\u26d4 Access denied.")
+            return
+        keyboard = [
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(
+            "\ud83d\udce2 BROADCAST MESSAGE\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            "Send a broadcast to all users:\n\n"
+            "Use the command:\n"
+            "/broadcast Your message here\n\n"
+            "This will send your message to all registered users.",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+
     elif query.data == "roadmap":
         keyboard = [
             [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
@@ -691,9 +1084,59 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+# ==================== BROADCAST COMMAND ====================
+
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Broadcast a message to all users. Admin only."""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_USER_ID:
+        await update.message.reply_text("\u26d4 Access denied.")
+        return
+
+    # Get the message text after /broadcast
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /broadcast Your message here\n\n"
+            "Example: /broadcast \ud83d\ude80 New update! Check out our latest features."
+        )
+        return
+
+    broadcast_text = " ".join(context.args)
+    data = load_user_data()
+    sent = 0
+    failed = 0
+
+    status_msg = await update.message.reply_text("\ud83d\udce2 Broadcasting...")
+
+    for user_str in data:
+        if user_str.startswith("__"):
+            continue
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_str),
+                text=f"\ud83d\udce2 Announcement\n\n{broadcast_text}\n\n\u2014 KoAnalyzer Team",
+            )
+            sent += 1
+        except Exception as e:
+            logger.warning(f"Broadcast failed for {user_str}: {e}")
+            failed += 1
+
+    await status_msg.edit_text(
+        f"\u2705 Broadcast Complete!\n\n"
+        f"\u2714\ufe0f Sent: {sent}\n"
+        f"\u274c Failed: {failed}\n"
+        f"\ud83d\udcac Total: {sent + failed}"
+    )
+
+
 # ==================== MESSAGE HANDLER ====================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Record activity for all users
+    user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+    record_user_activity(user_id, username, "message")
+
     if context.user_data.get("waiting_for_token"):
         context.user_data["waiting_for_token"] = False
         token_address = update.message.text.strip()
@@ -743,6 +1186,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             report = analyze_token(token_data, rug_data)
             increment_analysis(user_id)
+            record_user_activity(user_id, username, "analysis")
 
             dex_url = token_data.get("url", f"https://dexscreener.com/solana/{token_address}")
 
@@ -813,6 +1257,8 @@ def main():
     app.add_handler(CommandHandler("signals", signals_command))
     app.add_handler(CommandHandler("premium", premium_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("admin", admin_command))
+    app.add_handler(CommandHandler("broadcast", broadcast_command))
     if PROMO_CODE:
         app.add_handler(CommandHandler(PROMO_CODE, promo_command))
 
