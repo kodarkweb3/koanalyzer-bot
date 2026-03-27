@@ -321,6 +321,7 @@ def get_admin_stats() -> dict:
 def _check_premium_access(premium: dict) -> str:
     if premium["is_premium"]:
         return ""
+    promo_hint = f"\n\n🎁 Or use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!" if PROMO_CODE else ""
     return (
         f"🔒 Premium Access Required\n\n"
         f"This feature is only available for Premium users.\n\n"
@@ -331,7 +332,8 @@ def _check_premium_access(premium: dict) -> str:
         f"🐋 Whale tracking\n"
         f"⏰ Price alarms\n"
         f"🛡 Risk assessment\n\n"
-        f"💳 Pay securely via Telegram Stars\n\n"
+        f"💳 Pay securely via Telegram Stars"
+        f"{promo_hint}\n\n"
         f"👇 Tap below to unlock:"
     )
 
@@ -343,11 +345,13 @@ def build_start_text(premium: dict) -> str:
         if premium["remaining"] == "Unlimited":
             status_line = "✅ Premium Status: Active (Lifetime)"
         else:
-            status_line = f"✅ Premium Status: Active ({premium['remaining']} left)"
+            status_line = f"✅ Premium Status: Active ({premium['remaining']} left)\n📅 Expires: {premium['until']}"
     else:
         status_line = "❌ Premium Status: Inactive"
 
     payment_line = "" if premium["is_premium"] else "\n💳 Pay securely via Telegram Stars\n"
+
+    promo_line = f"\n🎁 Use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!\n" if PROMO_CODE else ""
 
     text = (
         f"🚀 Solana Memecoins Analyzer\n"
@@ -361,6 +365,7 @@ def build_start_text(premium: dict) -> str:
         f"📊 Holder Analysis — Top holder distribution & insiders\n"
         f"⏰ Price Alarms — Get notified on price targets\n"
         f"📈 Market Signals — Fear & Greed, BTC Dom, SOL price\n"
+        f"{promo_line}"
         f"\n"
         f"{status_line}"
         f"{payment_line}"
@@ -381,12 +386,10 @@ def build_start_keyboard(is_premium: bool) -> InlineKeyboardMarkup:
             InlineKeyboardButton("⏰ My Alarms", callback_data="my_alarms"),
             InlineKeyboardButton("🐋 My Whale Alerts", callback_data="my_whale_alerts"),
         ],
+        [InlineKeyboardButton("💎 Premium Status", callback_data="premium")],
     ]
-    if is_premium:
-        keyboard.append([InlineKeyboardButton("💎 Premium Status", callback_data="premium")])
-    else:
-        keyboard.append([InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="premium")])
-        keyboard.append([InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")])
+    if not is_premium:
+        keyboard.append([InlineKeyboardButton("🎁 Enter Promo Code", callback_data="promo_info")])
     keyboard.append([InlineKeyboardButton("🗺 Roadmap", callback_data="roadmap")])
     return InlineKeyboardMarkup(keyboard)
 
@@ -433,14 +436,25 @@ async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def _build_premium_text(premium: dict) -> str:
     if premium["is_premium"]:
-        return (
-            f"💎 PREMIUM STATUS\n\n"
-            f"✅ Status: Active\n"
-            f"⏰ Remaining: {premium['remaining']}\n"
-            f"📅 Expires: {premium['until']}\n\n"
-            f"🔓 All premium features are unlocked!"
-        )
+        if premium["remaining"] == "Unlimited":
+            return (
+                f"💎 PREMIUM STATUS\n\n"
+                f"✅ Status: Active (Lifetime)\n\n"
+                f"🔓 All premium features are unlocked!\n\n"
+                f"Thank you for your support!"
+            )
+        else:
+            return (
+                f"💎 PREMIUM STATUS\n\n"
+                f"✅ Status: Active\n"
+                f"⏰ Remaining: {premium['remaining']}\n"
+                f"📅 Expires: {premium['until']}\n\n"
+                f"🔓 All premium features are unlocked!\n\n"
+                f"🔄 Your subscription will need to be renewed\n"
+                f"before the expiry date to keep access."
+            )
     else:
+        promo_text = f"\n🎁 Use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!\n" if PROMO_CODE else ""
         return (
             f"💎 PREMIUM STATUS\n\n"
             f"❌ Status: Inactive\n\n"
@@ -451,7 +465,8 @@ def _build_premium_text(premium: dict) -> str:
             f"⏰ Price alarm system\n"
             f"⚡ Priority support\n\n"
             f"💰 Price: ~$13.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
-            f"📅 Duration: {PREMIUM_DAYS} days\n\n"
+            f"📅 Duration: {PREMIUM_DAYS} days\n"
+            f"{promo_text}\n"
             f"💳 Pay securely via Telegram Stars\n\n"
             f"👇 Tap the button below to purchase:"
         )
@@ -459,14 +474,17 @@ def _build_premium_text(premium: dict) -> str:
 
 def _build_premium_keyboard(premium: dict) -> InlineKeyboardMarkup:
     if premium["is_premium"]:
-        return InlineKeyboardMarkup([
+        kb = [
             [InlineKeyboardButton("🃏 START ANALYZING", callback_data="start_analyzing")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
-        ])
+        ]
+        if premium["remaining"] != "Unlimited":
+            kb.append([InlineKeyboardButton("🔄 Renew Premium", callback_data="buy_premium")])
+        kb.append([InlineKeyboardButton("🏠 Main Menu", callback_data="home")])
+        return InlineKeyboardMarkup(kb)
     else:
         return InlineKeyboardMarkup([
             [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-            [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+            [InlineKeyboardButton("🎁 Enter Promo Code", callback_data="promo_info")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
         ])
 
@@ -1061,9 +1079,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
             await query.edit_message_text("✅ You already have an active premium subscription!", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
+        if has_used_promo(user_id):
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+            ]
+            await query.edit_message_text(
+                "⚠️ You have already used your free trial.\n\n"
+                "Each user can only use the promo code once.\n"
+                "To continue using kodark.io, please purchase Premium.",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+            return
+        promo_display = f"/{PROMO_CODE}" if PROMO_CODE else "/promo"
         kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
         await query.edit_message_text(
-            f"🎁 Promo Code\n\nGet a {PROMO_DAYS}-day free trial!\n\nIf you have a promo code, send it as a command.\nExample: /yourcode",
+            f"🎁 FREE TRIAL\n\n"
+            f"Get a {PROMO_DAYS}-day free trial to unlock all premium features!\n\n"
+            f"👉 Just type: {promo_display}\n\n"
+            f"This will activate {PROMO_DAYS} days of full access including:\n"
+            f"🔍 Unlimited token analysis\n"
+            f"🤖 AI-powered reports\n"
+            f"🐋 Whale alert notifications\n"
+            f"⏰ Price alarm system\n\n"
+            f"⚠️ Each user can only use the promo code once.",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
 
@@ -1328,6 +1367,12 @@ async def background_price_check(app):
                     current_price = t["current_price"]
                     user_id = t["user_id"]
 
+                    # Check if user still has premium
+                    user_premium = get_user_premium_status(user_id)
+                    if not user_premium["is_premium"]:
+                        logger.info(f"Skipping alarm for non-premium user {user_id}")
+                        continue
+
                     text = (
                         f"🔔 PRICE ALARM TRIGGERED!\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -1369,6 +1414,11 @@ async def background_whale_check(app):
                     if alert_text:
                         for uid in user_ids:
                             try:
+                                # Check if user still has premium
+                                uid_premium = get_user_premium_status(uid)
+                                if not uid_premium["is_premium"]:
+                                    logger.info(f"Skipping whale alert for non-premium user {uid}")
+                                    continue
                                 await app.bot.send_message(chat_id=uid, text=alert_text, disable_web_page_preview=True)
                             except Exception as e:
                                 logger.error(f"Whale alert send error for {uid}: {e}")
