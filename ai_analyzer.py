@@ -431,6 +431,6 @@ def _rule_based_analysis(token_data: dict, rug_data: dict) -> str:
 
 {verdict_detail}
 
-Powered by KoAnalyzer | @kodarkweb3"""
+Powered by kodarkweb3 | For help & collaboration @yms56"""
 
     return report

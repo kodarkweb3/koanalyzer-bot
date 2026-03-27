@@ -1,0 +1,7 @@
+.env
+user_data.json
+__pycache__/
+*.pyc
+bot.log
+nohup.out
+.DS_Store
