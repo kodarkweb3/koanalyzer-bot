@@ -1,6 +1,7 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot
+kodark.io - Solana Memecoins Analyzer Bot v3.0
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
+Auto-Sniper Alerts | Multi-Language | Advanced Charting
 Telegram Stars Payment System
 """
 
@@ -47,6 +48,24 @@ from whale_monitor import (
     check_whale_activity,
     format_whale_alert_text,
 )
+from sniper_alerts import (
+    subscribe_sniper,
+    unsubscribe_sniper,
+    get_user_sniper_status,
+    get_all_sniper_subscribers,
+    check_new_tokens,
+    format_sniper_alert,
+    PLATFORM_OPTIONS,
+    get_platform_emoji,
+)
+from chart_generator import generate_price_chart
+from languages import (
+    get_text,
+    get_all_lang_buttons,
+    get_lang_name,
+    SUPPORTED_LANGUAGES,
+    DEFAULT_LANG,
+)
 
 # ==================== SETUP ====================
 
@@ -89,6 +108,29 @@ def save_user_data(data: dict):
             json.dump(data, f, indent=2, default=str)
     except Exception as e:
         logger.error(f"Data save error: {e}")
+
+
+def get_user_lang(user_id: int) -> str:
+    """Get user's preferred language."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str in data:
+        return data[user_str].get("lang", DEFAULT_LANG)
+    return DEFAULT_LANG
+
+
+def set_user_lang(user_id: int, lang: str):
+    """Set user's preferred language."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        data[user_str] = {
+            "premium": False, "premium_until": None,
+            "analysis_count": 0, "promo_used": False,
+            "joined": datetime.now().isoformat(),
+        }
+    data[user_str]["lang"] = lang
+    save_user_data(data)
 
 
 def get_user_premium_status(user_id: int) -> dict:
@@ -318,7 +360,7 @@ def get_admin_stats() -> dict:
 
 # ==================== PAYWALL CHECK ====================
 
-def _check_premium_access(premium: dict) -> str:
+def _check_premium_access(premium: dict, lang: str = "en") -> str:
     if premium["is_premium"]:
         return ""
     promo_hint = f"\n\n🎁 Or use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!" if PROMO_CODE else ""
@@ -329,8 +371,10 @@ def _check_premium_access(premium: dict) -> str:
         f"📅 {PREMIUM_DAYS} days of unlimited access\n\n"
         f"🔍 Unlimited token analysis\n"
         f"🤖 AI-powered reports\n"
-        f"🐋 Whale tracking\n"
+        f"🐋 Whale tracking & alerts\n"
         f"⏰ Price alarms\n"
+        f"🎯 Auto-Sniper alerts\n"
+        f"📊 Advanced charts\n"
         f"🛡 Risk assessment\n\n"
         f"💳 Pay securely via Telegram Stars"
         f"{promo_hint}\n\n"
@@ -340,31 +384,32 @@ def _check_premium_access(premium: dict) -> str:
 
 # ==================== START MENU ====================
 
-def build_start_text(premium: dict) -> str:
+def build_start_text(premium: dict, lang: str = "en") -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
-            status_line = "✅ Premium Status: Active (Lifetime)"
+            status_line = f"✅ {get_text('premium_active', lang)}: {get_text('lifetime', lang)}"
         else:
-            status_line = f"✅ Premium Status: Active ({premium['remaining']} left)\n📅 Expires: {premium['until']}"
+            status_line = f"✅ {get_text('premium_active', lang)} ({premium['remaining']} left)\n📅 Expires: {premium['until']}"
     else:
-        status_line = "❌ Premium Status: Inactive"
+        status_line = f"❌ {get_text('premium_inactive', lang)}"
 
     payment_line = "" if premium["is_premium"] else "\n💳 Pay securely via Telegram Stars\n"
 
     promo_line = f"\n🎁 Use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!\n" if PROMO_CODE else ""
 
     text = (
-        f"🚀 Solana Memecoins Analyzer\n"
+        f"{get_text('start_title', lang)}\n"
         f"\n"
-        f"🔥 The ultimate intelligence tool for Solana memecoins.\n"
-        f"Analyze any token before you ape in!\n"
+        f"{get_text('start_subtitle', lang)}\n"
         f"\n"
-        f"⚡ Features:\n"
-        f"🐋 Whale Watch — Track large wallet movements\n"
-        f"🛡 Risk Assessment — Rug pull detection & security scan\n"
-        f"📊 Holder Analysis — Top holder distribution & insiders\n"
-        f"⏰ Price Alarms — Get notified on price targets\n"
-        f"📈 Market Signals — Fear & Greed, BTC Dom, SOL price\n"
+        f"{get_text('features_header', lang)}\n"
+        f"{get_text('feature_whale', lang)}\n"
+        f"{get_text('feature_risk', lang)}\n"
+        f"{get_text('feature_holder', lang)}\n"
+        f"{get_text('feature_alarm', lang)}\n"
+        f"{get_text('feature_sniper', lang)}\n"
+        f"{get_text('feature_chart', lang)}\n"
+        f"{get_text('feature_signals', lang)}\n"
         f"{promo_line}"
         f"\n"
         f"{status_line}"
@@ -373,24 +418,26 @@ def build_start_text(premium: dict) -> str:
         f"🔗 x.com/kodarkweb3\n"
         f"🔗 x.com/kodarkio\n"
         f"\n"
-        f"👇 Select an option to get started:"
+        f"👇 {get_text('select_option', lang)}:"
     )
     return text
 
 
-def build_start_keyboard(is_premium: bool) -> InlineKeyboardMarkup:
+def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
-        [InlineKeyboardButton("🃏 START ANALYZING", callback_data="start_analyzing")],
-        [InlineKeyboardButton("📈 Market Signals", callback_data="signals")],
+        [InlineKeyboardButton(f"🃏 {get_text('btn_start_analyzing', lang)}", callback_data="start_analyzing")],
+        [InlineKeyboardButton(f"📈 {get_text('btn_market_signals', lang)}", callback_data="signals")],
         [
-            InlineKeyboardButton("⏰ My Alarms", callback_data="my_alarms"),
-            InlineKeyboardButton("🐋 My Whale Alerts", callback_data="my_whale_alerts"),
+            InlineKeyboardButton(f"⏰ {get_text('btn_my_alarms', lang)}", callback_data="my_alarms"),
+            InlineKeyboardButton(f"🐋 {get_text('btn_whale_alerts', lang)}", callback_data="my_whale_alerts"),
         ],
-        [InlineKeyboardButton("💎 Premium Status", callback_data="premium")],
+        [InlineKeyboardButton(f"🎯 {get_text('btn_sniper_alerts', lang)}", callback_data="sniper_menu")],
+        [InlineKeyboardButton(f"💎 {get_text('btn_premium', lang)}", callback_data="premium")],
     ]
     if not is_premium:
         keyboard.append([InlineKeyboardButton("🎁 Enter Promo Code", callback_data="promo_info")])
-    keyboard.append([InlineKeyboardButton("🗺 Roadmap", callback_data="roadmap")])
+    keyboard.append([InlineKeyboardButton(f"🌐 {get_text('btn_language', lang)}", callback_data="language_menu")])
+    keyboard.append([InlineKeyboardButton(f"🗺 {get_text('btn_roadmap', lang)}", callback_data="roadmap")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -401,12 +448,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username or update.effective_user.first_name or "Unknown"
     record_user_activity(user_id, username, "visit")
     premium = get_user_premium_status(user_id)
-    text = build_start_text(premium)
-    kb = build_start_keyboard(premium["is_premium"])
+    lang = get_user_lang(user_id)
+    text = build_start_text(premium, lang)
+    kb = build_start_keyboard(premium["is_premium"], lang)
     await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    lang = get_user_lang(user_id)
     help_text = (
         "📖 kodark.io Bot - Help Guide\n\n"
         "🚀 Commands:\n\n"
@@ -417,12 +467,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔍 How to Use:\n"
         "1. Tap 'START ANALYZING'\n"
         "2. Enter a Solana memecoin address\n"
-        "3. Choose: Analysis, Price Alarm, or Whale Alert\n\n"
+        "3. Choose: Analysis, Chart, Price Alarm, or Whale Alert\n\n"
         "💎 Premium gives you unlimited access to all features.\n\n"
         "🔗 x.com/kodarkweb3\n"
         "🔗 x.com/kodarkio"
     )
-    kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+    kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
     await update.message.reply_text(help_text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
 
@@ -463,6 +513,8 @@ def _build_premium_text(premium: dict) -> str:
             f"🤖 AI-powered reports\n"
             f"🐋 Whale alert notifications\n"
             f"⏰ Price alarm system\n"
+            f"🎯 Auto-Sniper alerts\n"
+            f"📊 Advanced charts\n"
             f"⚡ Priority support\n\n"
             f"💰 Price: ~$13.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
             f"📅 Duration: {PREMIUM_DAYS} days\n"
@@ -553,6 +605,8 @@ async def send_premium_invoice(update_or_query, context: ContextTypes.DEFAULT_TY
                     f"AI-powered reports\n"
                     f"Whale tracking & alerts\n"
                     f"Price alarm system\n"
+                    f"Auto-Sniper alerts\n"
+                    f"Advanced charts\n"
                     f"Risk assessment tools",
         payload="premium_subscription",
         provider_token="",
@@ -807,32 +861,65 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
+    lang = get_user_lang(user_id)
 
     # ===== HOME =====
     if query.data == "home":
         premium = get_user_premium_status(user_id)
-        text = build_start_text(premium)
-        kb = build_start_keyboard(premium["is_premium"])
+        text = build_start_text(premium, lang)
+        kb = build_start_keyboard(premium["is_premium"], lang)
         await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
+
+    # ===== LANGUAGE MENU =====
+    elif query.data == "language_menu":
+        buttons = get_all_lang_buttons()
+        kb_rows = []
+        for i in range(0, len(buttons), 3):
+            row = []
+            for name, cb_data in buttons[i:i+3]:
+                row.append(InlineKeyboardButton(name, callback_data=cb_data))
+            kb_rows.append(row)
+        kb_rows.append([InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")])
+
+        current_lang_name = get_lang_name(lang)
+        await query.edit_message_text(
+            f"🌐 {get_text('lang_select', lang)}\n\n"
+            f"Current: {current_lang_name}\n\n"
+            f"Select your preferred language:",
+            reply_markup=InlineKeyboardMarkup(kb_rows), disable_web_page_preview=True,
+        )
+
+    elif query.data.startswith("lang_"):
+        new_lang = query.data.replace("lang_", "")
+        if new_lang in SUPPORTED_LANGUAGES:
+            set_user_lang(user_id, new_lang)
+            lang = new_lang
+            lang_name = get_lang_name(new_lang)
+            premium = get_user_premium_status(user_id)
+            kb = build_start_keyboard(premium["is_premium"], lang)
+            await query.edit_message_text(
+                f"✅ {get_text('lang_changed', lang)}: {lang_name}\n\n"
+                f"{build_start_text(premium, lang)}",
+                reply_markup=kb, disable_web_page_preview=True,
+            )
 
     # ===== START ANALYZING (new flow) =====
     elif query.data == "start_analyzing":
         premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium)
+        paywall = _check_premium_access(premium, lang)
         if paywall:
             kb = [
                 [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
         await query.edit_message_text(
-            "🃏 START ANALYZING\n\n"
-            "Type a Solana memecoin address below:\n\n"
-            "Example:\n"
-            "So11111111111111111111111111111111111111112",
+            f"🃏 {get_text('btn_start_analyzing', lang)}\n\n"
+            f"{get_text('type_address', lang)}\n\n"
+            f"Example:\nSo11111111111111111111111111111111111111112",
             disable_web_page_preview=True,
         )
         context.user_data["waiting_for_token"] = True
@@ -846,11 +933,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         await query.edit_message_text(
-            "⏳ Analysis in progress...\n\n"
-            "🔄 Fetching DexScreener data...\n"
-            "🔄 Running RugCheck security scan...\n"
-            "🔄 Analyzing whale & holder data...\n"
-            "🔄 Generating comprehensive report...",
+            f"⏳ {get_text('analysis_progress', lang)}\n\n"
+            f"🔄 Fetching DexScreener data...\n"
+            f"🔄 Running RugCheck security scan...\n"
+            f"🔄 Analyzing whale & holder data...\n"
+            f"🔄 Generating comprehensive report...",
             disable_web_page_preview=True,
         )
 
@@ -877,12 +964,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             dex_url = token_data.get("url", f"https://dexscreener.com/solana/{token_address}")
             kb = [
                 [InlineKeyboardButton("📈 DexScreener", url=dex_url)],
+                [InlineKeyboardButton(f"📊 {get_text('btn_chart', lang)}", callback_data="action_chart")],
                 [InlineKeyboardButton("⏰ Set Alarm", callback_data="action_alarm")],
                 [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
                 [InlineKeyboardButton("🃏 New Analysis", callback_data="start_analyzing")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             reply_markup = InlineKeyboardMarkup(kb)
+
+            # Store token data for chart generation
+            context.user_data["current_token_data"] = token_data
 
             if len(report) > 4000:
                 parts = [report[i:i+4000] for i in range(0, len(report), 4000)]
@@ -896,6 +987,53 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Analysis error: {e}")
             await query.edit_message_text(f"❌ Error during analysis: {str(e)[:200]}")
+
+    # ===== ADVANCED CHART =====
+    elif query.data == "action_chart":
+        token_data = context.user_data.get("current_token_data")
+        token_address = context.user_data.get("current_token_address")
+
+        if not token_data or not token_address:
+            await query.edit_message_text("⚠️ Token data not found. Please run analysis first.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]))
+            return
+
+        await query.edit_message_text("📊 Generating chart...", disable_web_page_preview=True)
+
+        try:
+            chart_buf = generate_price_chart(token_data)
+            if chart_buf:
+                token_symbol = context.user_data.get("current_token_symbol", "???")
+                token_name = context.user_data.get("current_token_name", "Unknown")
+
+                kb = [
+                    [InlineKeyboardButton("🔍 Start Analysis", callback_data="action_analysis")],
+                    [InlineKeyboardButton("⏰ Set Alarm", callback_data="action_alarm")],
+                    [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
+                    [InlineKeyboardButton("🃏 New Analysis", callback_data="start_analyzing")],
+                    [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
+                ]
+
+                await context.bot.send_photo(
+                    chat_id=query.from_user.id,
+                    photo=chart_buf,
+                    caption=f"📊 {token_name} (${token_symbol}) — 24h Price Chart\n\nPowered by kodarkweb3 | @yms56",
+                    reply_markup=InlineKeyboardMarkup(kb),
+                )
+                # Delete the "Generating chart..." message
+                try:
+                    await query.delete_message()
+                except Exception:
+                    pass
+            else:
+                await query.edit_message_text(
+                    "⚠️ Could not generate chart. Insufficient price data.",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]),
+                    disable_web_page_preview=True,
+                )
+        except Exception as e:
+            logger.error(f"Chart generation error: {e}")
+            await query.edit_message_text(f"❌ Chart error: {str(e)[:200]}")
 
     # ===== SET PRICE ALARM =====
     elif query.data == "action_alarm":
@@ -912,7 +1050,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📉 Price Goes Below", callback_data="alarm_price_below")],
             [InlineKeyboardButton("🟢 % Price Increase", callback_data="alarm_pct_up")],
             [InlineKeyboardButton("🔴 % Price Decrease", callback_data="alarm_pct_down")],
-            [InlineKeyboardButton("◀️ Back", callback_data="token_actions")],
+            [InlineKeyboardButton(f"◀️ {get_text('btn_back', lang)}", callback_data="token_actions")],
         ]
 
         current_price = context.user_data.get("current_token_price", "N/A")
@@ -937,8 +1075,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["waiting_for_alarm_value"] = True
 
         await query.edit_message_text(
-            f"⏰ {prompt}\n\n"
-            f"Type the value below:",
+            f"⏰ {prompt}\n\nType the value below:",
             disable_web_page_preview=True,
         )
 
@@ -955,13 +1092,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = add_whale_alert(user_id, token_address, token_name, token_symbol)
 
         if "error" in result:
-            kb = [[InlineKeyboardButton("◀️ Back", callback_data="token_actions")], [InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+            kb = [[InlineKeyboardButton(f"◀️ {get_text('btn_back', lang)}", callback_data="token_actions")], [InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
             await query.edit_message_text(f"⚠️ {result['error']}", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
         else:
             kb = [
                 [InlineKeyboardButton("🐋 My Whale Alerts", callback_data="my_whale_alerts")],
                 [InlineKeyboardButton("🃏 New Analysis", callback_data="start_analyzing")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(
                 f"✅ Whale Alert Activated!\n\n"
@@ -983,14 +1120,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         kb = [
             [InlineKeyboardButton("🔍 Start Analysis", callback_data="action_analysis")],
+            [InlineKeyboardButton(f"📊 {get_text('btn_chart', lang)}", callback_data="action_chart")],
             [InlineKeyboardButton("⏰ Set Price Alarm", callback_data="action_alarm")],
             [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+            [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
         ]
         await query.edit_message_text(
             f"🃏 TOKEN: ${token_symbol} ({token_name})\n"
             f"💰 Price: ${token_price}\n\n"
-            f"What would you like to do?",
+            f"{get_text('what_to_do', lang)}",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
 
@@ -1000,7 +1138,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not alarms:
             kb = [
                 [InlineKeyboardButton("🃏 START ANALYZING", callback_data="start_analyzing")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text("⏰ MY ALARMS\n━━━━━━━━━━━━━━━━━━━━\n\nNo active alarms.\n\nTo set an alarm, analyze a token first.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
         else:
@@ -1012,13 +1150,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [
                 [InlineKeyboardButton("🗑 Delete All Alarms", callback_data="delete_all_alarms")],
                 [InlineKeyboardButton("🔄 Refresh", callback_data="my_alarms")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
     elif query.data == "delete_all_alarms":
         count = delete_all_alarms(user_id)
-        kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+        kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
         await query.edit_message_text(f"🗑 Deleted {count} alarm(s).", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
     # ===== MY WHALE ALERTS =====
@@ -1027,7 +1165,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not alerts:
             kb = [
                 [InlineKeyboardButton("🃏 START ANALYZING", callback_data="start_analyzing")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text("🐋 MY WHALE ALERTS\n━━━━━━━━━━━━━━━━━━━━\n\nNo active whale alerts.\n\nTo set a whale alert, analyze a token first.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
         else:
@@ -1039,24 +1177,98 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = [
                 [InlineKeyboardButton("🗑 Delete All Whale Alerts", callback_data="delete_all_whale_alerts")],
                 [InlineKeyboardButton("🔄 Refresh", callback_data="my_whale_alerts")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
     elif query.data == "delete_all_whale_alerts":
         count = delete_all_whale_alerts(user_id)
-        kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+        kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
         await query.edit_message_text(f"🗑 Deleted {count} whale alert(s).", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
-    # ===== SIGNALS =====
-    elif query.data == "signals":
+    # ===== SNIPER ALERTS MENU =====
+    elif query.data == "sniper_menu":
         premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium)
+        paywall = _check_premium_access(premium, lang)
         if paywall:
             kb = [
                 [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
+            ]
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
+        status = get_user_sniper_status(user_id)
+        active_platforms = status.get("platforms", [])
+
+        if status["active"] and active_platforms:
+            plat_names = []
+            for p in active_platforms:
+                plat_names.append(f"{get_platform_emoji(p)} {PLATFORM_OPTIONS.get(p, p)}")
+            plat_text = "\n".join(plat_names)
+            status_text = f"✅ Auto-Sniper: ACTIVE\n\n📡 Monitoring:\n{plat_text}"
+        else:
+            status_text = "❌ Auto-Sniper: INACTIVE\n\nSubscribe to get alerts when new tokens launch."
+
+        kb = [
+            [InlineKeyboardButton("🌐 All Platforms", callback_data="sniper_sub_all")],
+            [InlineKeyboardButton("🎰 Pump.fun", callback_data="sniper_sub_pump_fun")],
+            [InlineKeyboardButton("💧 Raydium", callback_data="sniper_sub_raydium")],
+            [InlineKeyboardButton("🪐 Jupiter", callback_data="sniper_sub_jupiter")],
+        ]
+        if status["active"]:
+            kb.append([InlineKeyboardButton("🔴 Unsubscribe All", callback_data="sniper_unsub_all")])
+        kb.append([InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")])
+
+        await query.edit_message_text(
+            f"🎯 {get_text('sniper_title', lang)}\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"{get_text('sniper_desc', lang)}\n\n"
+            f"{status_text}\n\n"
+            f"Choose a platform to monitor:",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    elif query.data.startswith("sniper_sub_"):
+        platform = query.data.replace("sniper_sub_", "")
+        result = subscribe_sniper(user_id, platform)
+
+        if result["success"]:
+            plat_name = PLATFORM_OPTIONS.get(platform, platform)
+            kb = [
+                [InlineKeyboardButton("🎯 Sniper Settings", callback_data="sniper_menu")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
+            ]
+            await query.edit_message_text(
+                f"✅ Subscribed to {plat_name}!\n\n"
+                f"You will receive alerts when new tokens are detected.\n"
+                f"Monitoring runs every 5 minutes.\n\n"
+                f"📡 Active platforms: {', '.join(result['platforms'])}",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+
+    elif query.data == "sniper_unsub_all":
+        unsubscribe_sniper(user_id, "all")
+        kb = [
+            [InlineKeyboardButton("🎯 Sniper Settings", callback_data="sniper_menu")],
+            [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
+        ]
+        await query.edit_message_text(
+            "🔴 Unsubscribed from all sniper alerts.\n\n"
+            "You will no longer receive new token notifications.",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    # ===== SIGNALS =====
+    elif query.data == "signals":
+        premium = get_user_premium_status(user_id)
+        paywall = _check_premium_access(premium, lang)
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
@@ -1076,13 +1288,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "promo_info":
         premium = get_user_premium_status(user_id)
         if premium["is_premium"]:
-            kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+            kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
             await query.edit_message_text("✅ You already have an active premium subscription!", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
         if has_used_promo(user_id):
             kb = [
                 [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
             await query.edit_message_text(
                 "⚠️ You have already used your free trial.\n\n"
@@ -1092,7 +1304,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         promo_display = f"/{PROMO_CODE}" if PROMO_CODE else "/promo"
-        kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+        kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
         await query.edit_message_text(
             f"🎁 FREE TRIAL\n\n"
             f"Get a {PROMO_DAYS}-day free trial to unlock all premium features!\n\n"
@@ -1101,35 +1313,44 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔍 Unlimited token analysis\n"
             f"🤖 AI-powered reports\n"
             f"🐋 Whale alert notifications\n"
-            f"⏰ Price alarm system\n\n"
+            f"⏰ Price alarm system\n"
+            f"🎯 Auto-Sniper alerts\n"
+            f"📊 Advanced charts\n\n"
             f"⚠️ Each user can only use the promo code once.",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
 
     # ===== ROADMAP =====
     elif query.data == "roadmap":
-        kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+        kb = [[InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")]]
         await query.edit_message_text(
-            "🗺 ROADMAP - Upcoming Features\n\n"
-            "We are constantly working to make kodark.io\n"
-            "the best Solana intelligence tool.\n\n"
-            "🔜 Coming Soon:\n\n"
-            "🔔 Whale Alert Notifications ✅ LIVE\n"
+            "🗺 ROADMAP — kodark.io\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "✅ COMPLETED\n\n"
+            "🐋 Whale Alert Notifications ✅\n"
             "Real-time push alerts when whales buy or sell.\n\n"
-            "⏰ Price Alarm System ✅ LIVE\n"
+            "⏰ Price Alarm System ✅\n"
             "Set custom price targets and get notified.\n\n"
-            "🌐 Multi-Language Support\n"
-            "Full support for Turkish, Spanish, Chinese and more.\n\n"
+            "🎯 Auto-Sniper Alerts ✅\n"
+            "Get notified about new token launches on Pump.fun, Raydium & Jupiter.\n\n"
+            "🌐 Multi-Language Support ✅\n"
+            "Full support for 15 languages including Turkish, Spanish, Chinese and more.\n\n"
+            "📊 Advanced Charting ✅\n"
+            "Professional price charts inside Telegram.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🔜 COMING SOON\n\n"
             "👥 Referral System\n"
             "Invite friends and earn free premium days.\n\n"
-            "📊 Portfolio Tracker\n"
-            "Track your Solana wallet holdings and PnL.\n\n"
-            "🤖 Auto-Sniper Alerts\n"
-            "Get notified about new token launches.\n\n"
-            "📉 Advanced Charting\n"
-            "Interactive price charts inside Telegram.\n\n"
-            "🛡 Watchlist\n"
-            "Save favorite tokens and get daily reports.\n\n"
+            "🛡 Watchlist & Daily Reports\n"
+            "Save favorite tokens and get automated daily summaries.\n\n"
+            "🤖 AI Trading Signals\n"
+            "Machine learning-based buy/sell signals.\n\n"
+            "📱 Mini App Dashboard\n"
+            "Full-featured Telegram Mini App with interactive charts.\n\n"
+            "🔗 Wallet Connect\n"
+            "Connect your Solana wallet for personalized analytics.\n\n"
+            "🏆 Leaderboard & Community\n"
+            "Top traders ranking and community insights.\n\n"
             "Stay tuned for updates!\n\n"
             "🔗 x.com/kodarkweb3\n"
             "🔗 x.com/kodarkio",
@@ -1192,6 +1413,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username or update.effective_user.first_name or "Unknown"
     record_user_activity(user_id, username, "message")
     text = update.message.text.strip()
+    lang = get_user_lang(user_id)
 
     # ===== WAITING FOR ALARM VALUE =====
     if context.user_data.get("waiting_for_alarm_value"):
@@ -1237,7 +1459,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["waiting_for_token"] = False
 
         premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium)
+        paywall = _check_premium_access(premium, lang)
         if paywall:
             kb = [
                 [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
@@ -1279,24 +1501,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["current_token_symbol"] = token_symbol
             context.user_data["current_token_price"] = price_usd
             context.user_data["current_token_price_float"] = float(price_usd) if price_usd else 0
+            context.user_data["current_token_data"] = token_data
 
             kb = [
                 [InlineKeyboardButton("🔍 Start Analysis", callback_data="action_analysis")],
+                [InlineKeyboardButton(f"📊 {get_text('btn_chart', lang)}", callback_data="action_chart")],
                 [InlineKeyboardButton("⏰ Set Price Alarm", callback_data="action_alarm")],
                 [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
-                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+                [InlineKeyboardButton(f"🏠 {get_text('btn_home', lang)}", callback_data="home")],
             ]
 
             mcap_str = f"${mcap:,.0f}" if mcap > 0 else "N/A"
 
             await loading_msg.edit_text(
-                f"🃏 TOKEN FOUND\n"
+                f"🃏 {get_text('token_found', lang)}\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n\n"
                 f"📌 {token_name} (${token_symbol})\n"
                 f"💰 Price: ${price_usd}\n"
                 f"📊 Market Cap: {mcap_str}\n"
                 f"📈 24h: {change_emoji} {change_24h:+.2f}%\n\n"
-                f"What would you like to do?",
+                f"{get_text('what_to_do', lang)}",
                 reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
             )
 
@@ -1308,7 +1532,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== AUTO-DETECT TOKEN ADDRESS =====
     if len(text) >= 32 and len(text) <= 50 and text.isalnum():
         premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium)
+        paywall = _check_premium_access(premium, lang)
         if paywall:
             kb = [
                 [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
@@ -1352,7 +1576,7 @@ async def background_price_check(app):
                         price = float(token_data.get("price_usd", 0) or 0)
                         change_24h = float(token_data.get("price_change_24h", 0) or 0)
                         current_prices[token_addr] = {"price": price, "change_24h": change_24h}
-                    await asyncio.sleep(1)  # Rate limiting
+                    await asyncio.sleep(1)
                 except Exception as e:
                     logger.error(f"Price check error for {token_addr}: {e}")
 
@@ -1365,12 +1589,10 @@ async def background_price_check(app):
                 try:
                     alarm = t["alarm"]
                     current_price = t["current_price"]
-                    user_id = t["user_id"]
+                    uid = t["user_id"]
 
-                    # Check if user still has premium
-                    user_premium = get_user_premium_status(user_id)
+                    user_premium = get_user_premium_status(uid)
                     if not user_premium["is_premium"]:
-                        logger.info(f"Skipping alarm for non-premium user {user_id}")
                         continue
 
                     text = (
@@ -1382,7 +1604,7 @@ async def background_price_check(app):
                         f"⚡ This alarm has been deactivated."
                     )
 
-                    await app.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
+                    await app.bot.send_message(chat_id=uid, text=text, disable_web_page_preview=True)
                 except Exception as e:
                     logger.error(f"Alarm notification error: {e}")
 
@@ -1414,16 +1636,14 @@ async def background_whale_check(app):
                     if alert_text:
                         for uid in user_ids:
                             try:
-                                # Check if user still has premium
                                 uid_premium = get_user_premium_status(uid)
                                 if not uid_premium["is_premium"]:
-                                    logger.info(f"Skipping whale alert for non-premium user {uid}")
                                     continue
                                 await app.bot.send_message(chat_id=uid, text=alert_text, disable_web_page_preview=True)
                             except Exception as e:
                                 logger.error(f"Whale alert send error for {uid}: {e}")
 
-                    await asyncio.sleep(2)  # Rate limiting
+                    await asyncio.sleep(2)
                 except Exception as e:
                     logger.error(f"Whale check error for {token_addr}: {e}")
 
@@ -1431,17 +1651,59 @@ async def background_whale_check(app):
             logger.error(f"Background whale check error: {e}")
 
 
+async def background_sniper_check(app):
+    """Background task: check for new token launches every 5 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # 5 minutes
+
+            platform_users = get_all_sniper_subscribers()
+            has_subscribers = any(users for users in platform_users.values())
+            if not has_subscribers:
+                continue
+
+            new_tokens = check_new_tokens()
+            if not new_tokens:
+                continue
+
+            for token in new_tokens:
+                platform = token.get("platform", "unknown")
+                alert_text = format_sniper_alert(token)
+
+                # Send to subscribers of this platform
+                notified = set()
+                for plat, users in platform_users.items():
+                    if plat == platform or plat == "all":
+                        for uid in users:
+                            if uid in notified:
+                                continue
+                            try:
+                                uid_premium = get_user_premium_status(uid)
+                                if not uid_premium["is_premium"]:
+                                    continue
+                                await app.bot.send_message(chat_id=uid, text=alert_text, disable_web_page_preview=True)
+                                notified.add(uid)
+                            except Exception as e:
+                                logger.error(f"Sniper alert send error for {uid}: {e}")
+
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Background sniper check error: {e}")
+
+
 async def post_init(app):
     """Start background tasks after bot initialization."""
     asyncio.create_task(background_price_check(app))
     asyncio.create_task(background_whale_check(app))
-    logger.info("Background monitoring tasks started.")
+    asyncio.create_task(background_sniper_check(app))
+    logger.info("Background monitoring tasks started (price, whale, sniper).")
 
 
 # ==================== MAIN ====================
 
 def main():
-    logger.info("kodark.io Bot starting...")
+    logger.info("kodark.io Bot v3.0 starting...")
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
@@ -1462,7 +1724,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot started successfully! Polling...")
+    logger.info("Bot v3.0 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
