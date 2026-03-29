@@ -1,7 +1,8 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v3.0
+kodark.io - Solana Memecoins Analyzer Bot v4.0
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
+Free Tier (3 analyses + 3 alarms) | Feedback System
 Telegram Stars Payment System
 """
 
@@ -81,15 +82,23 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN not found! Check your .env file.")
 
-PREMIUM_PRICE_STARS = 1000
+PREMIUM_PRICE_STARS = 550  # ~$7.99
 PREMIUM_DAYS = 30
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
-PROMO_CODE = os.getenv("PROMO_CODE", "")
-PROMO_DAYS = 3
 
-# ==================== DATA STORAGE ====================
+# Free tier limits
+FREE_ANALYSIS_LIMIT = 3
+FREE_ALARM_LIMIT = 3
 
-DATA_FILE = "user_data.json"
+# ==================== PERSISTENT DATA STORAGE ====================
+# Use DATA_DIR env variable for Railway volume persistence
+# Set DATA_DIR=/data in Railway and mount a volume at /data
+
+DATA_DIR = os.getenv("DATA_DIR", ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATA_FILE = os.path.join(DATA_DIR, "user_data.json")
+FEEDBACK_FILE = os.path.join(DATA_DIR, "feedback.json")
 
 
 def load_user_data() -> dict:
@@ -110,8 +119,27 @@ def save_user_data(data: dict):
         logger.error(f"Data save error: {e}")
 
 
+def load_feedback() -> list:
+    try:
+        if os.path.exists(FEEDBACK_FILE):
+            with open(FEEDBACK_FILE, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        logger.error(f"Feedback load error: {e}")
+    return []
+
+
+def save_feedback(feedbacks: list):
+    try:
+        with open(FEEDBACK_FILE, "w") as f:
+            json.dump(feedbacks, f, indent=2, default=str)
+    except Exception as e:
+        logger.error(f"Feedback save error: {e}")
+
+
+# ==================== USER HELPERS ====================
+
 def get_user_lang(user_id: int) -> str:
-    """Get user's preferred language."""
     data = load_user_data()
     user_str = str(user_id)
     if user_str in data:
@@ -120,17 +148,33 @@ def get_user_lang(user_id: int) -> str:
 
 
 def set_user_lang(user_id: int, lang: str):
-    """Set user's preferred language."""
     data = load_user_data()
     user_str = str(user_id)
     if user_str not in data:
-        data[user_str] = {
-            "premium": False, "premium_until": None,
-            "analysis_count": 0, "promo_used": False,
-            "joined": datetime.now().isoformat(),
-        }
+        data[user_str] = _new_user_record()
     data[user_str]["lang"] = lang
     save_user_data(data)
+
+
+def _new_user_record() -> dict:
+    return {
+        "premium": False,
+        "premium_until": None,
+        "analysis_count": 0,
+        "alarm_count": 0,
+        "paid_premium": False,
+        "joined": datetime.now().isoformat(),
+    }
+
+
+def ensure_user(user_id: int) -> dict:
+    """Ensure user record exists and return it."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        data[user_str] = _new_user_record()
+        save_user_data(data)
+    return data[user_str]
 
 
 def get_user_premium_status(user_id: int) -> dict:
@@ -141,11 +185,7 @@ def get_user_premium_status(user_id: int) -> dict:
     user_str = str(user_id)
 
     if user_str not in data:
-        data[user_str] = {
-            "premium": False, "premium_until": None,
-            "analysis_count": 0, "promo_used": False,
-            "joined": datetime.now().isoformat(),
-        }
+        data[user_str] = _new_user_record()
         save_user_data(data)
 
     user = data[user_str]
@@ -176,10 +216,7 @@ def activate_premium(user_id: int, days: int = 30):
     user_str = str(user_id)
 
     if user_str not in data:
-        data[user_str] = {
-            "analysis_count": 0, "promo_used": False,
-            "joined": datetime.now().isoformat(),
-        }
+        data[user_str] = _new_user_record()
 
     current_until = None
     if data[user_str].get("premium_until"):
@@ -198,32 +235,48 @@ def activate_premium(user_id: int, days: int = 30):
     return until
 
 
-def is_promo_only_user(user_id: int) -> bool:
-    """Check if user is premium ONLY via promo code (not paid)."""
-    if user_id == ADMIN_USER_ID:
-        return False
+# ==================== FREE TIER TRACKING ====================
+
+def get_free_usage(user_id: int) -> dict:
+    """Get remaining free tier usage for a user."""
     data = load_user_data()
     user_str = str(user_id)
     if user_str not in data:
-        return False
+        return {"analyses_used": 0, "alarms_used": 0,
+                "analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+
     user = data[user_str]
-    return user.get("promo_used", False) and not user.get("paid_premium", False)
+    analyses_used = user.get("analysis_count", 0)
+    alarms_used = user.get("alarm_count", 0)
+
+    return {
+        "analyses_used": analyses_used,
+        "alarms_used": alarms_used,
+        "analyses_left": max(0, FREE_ANALYSIS_LIMIT - analyses_used),
+        "alarms_left": max(0, FREE_ALARM_LIMIT - alarms_used),
+    }
 
 
-def has_used_promo(user_id: int) -> bool:
-    data = load_user_data()
-    user_str = str(user_id)
-    if user_str in data:
-        return data[user_str].get("promo_used", False)
-    return False
+def can_use_free_analysis(user_id: int) -> bool:
+    """Check if user can use a free analysis."""
+    if user_id == ADMIN_USER_ID:
+        return True
+    premium = get_user_premium_status(user_id)
+    if premium["is_premium"]:
+        return True
+    usage = get_free_usage(user_id)
+    return usage["analyses_left"] > 0
 
 
-def mark_promo_used(user_id: int):
-    data = load_user_data()
-    user_str = str(user_id)
-    if user_str in data:
-        data[user_str]["promo_used"] = True
-        save_user_data(data)
+def can_use_free_alarm(user_id: int) -> bool:
+    """Check if user can set a free alarm."""
+    if user_id == ADMIN_USER_ID:
+        return True
+    premium = get_user_premium_status(user_id)
+    if premium["is_premium"]:
+        return True
+    usage = get_free_usage(user_id)
+    return usage["alarms_left"] > 0
 
 
 def increment_analysis(user_id: int):
@@ -235,17 +288,53 @@ def increment_analysis(user_id: int):
         save_user_data(data)
 
 
+def increment_alarm_count(user_id: int):
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str in data:
+        data[user_str]["alarm_count"] = data[user_str].get("alarm_count", 0) + 1
+        save_user_data(data)
+
+
+# ==================== FEEDBACK SYSTEM ====================
+
+def add_feedback(user_id: int, username: str, text: str):
+    feedbacks = load_feedback()
+    feedbacks.append({
+        "user_id": user_id,
+        "username": username,
+        "text": text,
+        "time": datetime.now().isoformat(),
+        "read": False,
+    })
+    save_feedback(feedbacks)
+
+
+def get_all_feedback() -> list:
+    return load_feedback()
+
+
+def get_unread_feedback_count() -> int:
+    feedbacks = load_feedback()
+    return sum(1 for f in feedbacks if not f.get("read", False))
+
+
+def mark_all_feedback_read():
+    feedbacks = load_feedback()
+    for f in feedbacks:
+        f["read"] = True
+    save_feedback(feedbacks)
+
+
+# ==================== ACTIVITY TRACKING ====================
+
 def record_user_activity(user_id: int, username: str = None, activity: str = "visit"):
     data = load_user_data()
     user_str = str(user_id)
     now = datetime.now().isoformat()
 
     if user_str not in data:
-        data[user_str] = {
-            "premium": False, "premium_until": None,
-            "analysis_count": 0, "promo_used": False,
-            "joined": now,
-        }
+        data[user_str] = _new_user_record()
 
     data[user_str]["last_active"] = now
     data[user_str]["username"] = username or data[user_str].get("username", "Unknown")
@@ -258,7 +347,7 @@ def record_user_activity(user_id: int, username: str = None, activity: str = "vi
     if "__stats__" not in data:
         data["__stats__"] = {
             "total_analyses": 0, "total_payments": 0,
-            "total_promo_uses": 0, "daily_analyses": {}, "daily_users": {},
+            "daily_analyses": {}, "daily_users": {},
         }
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -268,8 +357,6 @@ def record_user_activity(user_id: int, username: str = None, activity: str = "vi
         data["__stats__"]["daily_analyses"][today] = data["__stats__"]["daily_analyses"].get(today, 0) + 1
     if activity == "payment":
         data["__stats__"]["total_payments"] = data["__stats__"].get("total_payments", 0) + 1
-    if activity == "promo":
-        data["__stats__"]["total_promo_uses"] = data["__stats__"].get("total_promo_uses", 0) + 1
 
     if today not in data["__stats__"]["daily_users"]:
         data["__stats__"]["daily_users"][today] = []
@@ -294,8 +381,8 @@ def get_admin_stats() -> dict:
     active_today = 0
     active_24h = 0
     new_today = 0
-    promo_users = 0
     total_analyses = 0
+    free_users = 0
     recent_users = []
 
     for user_str, ud in data.items():
@@ -304,16 +391,18 @@ def get_admin_stats() -> dict:
         total_users += 1
         total_analyses += ud.get("analysis_count", 0)
 
+        is_prem = False
         if ud.get("premium_until"):
             try:
                 until = datetime.fromisoformat(ud["premium_until"])
                 if until > now:
                     premium_users += 1
+                    is_prem = True
             except Exception:
                 pass
 
-        if ud.get("promo_used"):
-            promo_users += 1
+        if not is_prem:
+            free_users += 1
 
         last_active = ud.get("last_active")
         if last_active:
@@ -339,8 +428,8 @@ def get_admin_stats() -> dict:
             "id": user_str,
             "username": ud.get("username", "Unknown"),
             "analyses": ud.get("analysis_count", 0),
-            "premium": bool(ud.get("premium")),
-            "promo_used": bool(ud.get("promo_used")),
+            "premium": is_prem,
+            "paid": ud.get("paid_premium", False),
             "last_active": last_active or joined or "",
             "joined": joined or "",
         })
@@ -358,56 +447,105 @@ def get_admin_stats() -> dict:
         day_name = (now - timedelta(days=i)).strftime("%a")
         week_analyses.append(f"{day_name}: {count}")
 
+    unread_fb = get_unread_feedback_count()
+
     return {
         "total_users": total_users, "premium_users": premium_users,
+        "free_users": free_users,
         "active_today": active_today, "active_24h": active_24h,
-        "new_today": new_today, "promo_users": promo_users,
+        "new_today": new_today,
         "total_analyses": total_analyses, "today_analyses": today_analyses,
         "today_unique": today_unique,
         "total_payments": stats.get("total_payments", 0),
         "week_trend": " | ".join(week_analyses),
         "recent_users": recent_users[:10],
+        "unread_feedback": unread_fb,
     }
 
 
-# ==================== PAYWALL CHECK ====================
+# ==================== ACCESS CHECK ====================
 
-def _check_premium_access(premium: dict, lang: str = "en") -> str:
+def _check_analysis_access(user_id: int, lang: str = "en") -> str:
+    """Check if user can perform analysis. Returns empty string if allowed, paywall text if not."""
+    premium = get_user_premium_status(user_id)
     if premium["is_premium"]:
         return ""
-    promo_hint = f"\n\n🎁 Or use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!" if PROMO_CODE else ""
+
+    usage = get_free_usage(user_id)
+    if usage["analyses_left"] > 0:
+        return ""
+
+    # Free tier exhausted
     return (
-        f"🔒 Premium Access Required\n\n"
-        f"This feature is only available for Premium users.\n\n"
-        f"💎 Get Premium for ~$13.99 ({PREMIUM_PRICE_STARS} Stars)\n"
-        f"📅 {PREMIUM_DAYS} days of unlimited access\n\n"
+        f"🔒 Free Analyses Used Up\n\n"
+        f"You have used all {FREE_ANALYSIS_LIMIT} free analyses.\n\n"
+        f"💎 Upgrade to Premium for unlimited access!\n\n"
+        f"Premium includes:\n"
         f"🔍 Unlimited token analysis\n"
         f"🤖 AI-powered reports\n"
         f"🐋 Whale tracking & alerts\n"
-        f"⏰ Price alarms\n"
+        f"⏰ Unlimited price alarms\n"
         f"🎯 Auto-Sniper alerts\n"
-        f"📊 Advanced charts\n"
-        f"🛡 Risk assessment\n\n"
-        f"💳 Pay securely via Telegram Stars"
-        f"{promo_hint}\n\n"
-        f"👇 Tap below to unlock:"
+        f"📊 Advanced charts\n\n"
+        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"👇 Tap below to upgrade:"
+    )
+
+
+def _check_alarm_access(user_id: int, lang: str = "en") -> str:
+    """Check if user can set alarm. Returns empty string if allowed, paywall text if not."""
+    premium = get_user_premium_status(user_id)
+    if premium["is_premium"]:
+        return ""
+
+    usage = get_free_usage(user_id)
+    if usage["alarms_left"] > 0:
+        return ""
+
+    return (
+        f"🔒 Free Alarms Used Up\n\n"
+        f"You have used all {FREE_ALARM_LIMIT} free price alarms.\n\n"
+        f"💎 Upgrade to Premium for unlimited alarms!\n\n"
+        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"👇 Tap below to upgrade:"
+    )
+
+
+def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
+    """Check if user has premium for premium-only features (whale, sniper, signals)."""
+    premium = get_user_premium_status(user_id)
+    if premium["is_premium"]:
+        return ""
+
+    return (
+        f"🔒 Premium Feature\n\n"
+        f"{feature} is only available for Premium subscribers.\n\n"
+        f"Free users get:\n"
+        f"🔍 {FREE_ANALYSIS_LIMIT} token analyses\n"
+        f"⏰ {FREE_ALARM_LIMIT} price alarms\n\n"
+        f"💎 Upgrade to Premium to unlock everything!\n\n"
+        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"👇 Tap below to upgrade:"
     )
 
 
 # ==================== START MENU ====================
 
-def build_start_text(premium: dict, lang: str = "en") -> str:
+def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
             status_line = f"{get_text('premium_active', lang)}: {get_text('lifetime', lang)}"
         else:
             status_line = f"{get_text('premium_active', lang)} ({premium['remaining']} left)\n📅 Expires: {premium['until']}"
     else:
-        status_line = f"{get_text('premium_inactive', lang)}"
+        # Show free tier usage
+        usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+        status_line = (
+            f"{get_text('premium_inactive', lang)}\n"
+            f"🆓 Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms remaining"
+        )
 
-    payment_line = "" if premium["is_premium"] else "\n💳 Pay securely via Telegram Stars\n"
-
-    promo_line = f"\n🎁 Use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!\n" if PROMO_CODE else ""
+    payment_line = "" if premium["is_premium"] else f"\n💎 Premium: ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n"
 
     text = (
         f"{get_text('start_title', lang)}\n"
@@ -422,7 +560,6 @@ def build_start_text(premium: dict, lang: str = "en") -> str:
         f"{get_text('feature_sniper', lang)}\n"
         f"{get_text('feature_chart', lang)}\n"
         f"{get_text('feature_signals', lang)}\n"
-        f"{promo_line}"
         f"\n"
         f"{status_line}"
         f"{payment_line}"
@@ -445,11 +582,10 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
         ],
         [InlineKeyboardButton(get_text('btn_sniper_alerts', lang), callback_data="sniper_menu")],
         [InlineKeyboardButton(get_text('btn_premium', lang), callback_data="premium")],
+        [InlineKeyboardButton("💬 Feedback", callback_data="feedback_start")],
+        [InlineKeyboardButton(get_text('btn_language', lang), callback_data="language_menu")],
+        [InlineKeyboardButton(get_text('btn_roadmap', lang), callback_data="roadmap")],
     ]
-    if not is_premium:
-        keyboard.append([InlineKeyboardButton("🎁 Enter Promo Code", callback_data="promo_info")])
-    keyboard.append([InlineKeyboardButton(get_text('btn_language', lang), callback_data="language_menu")])
-    keyboard.append([InlineKeyboardButton(get_text('btn_roadmap', lang), callback_data="roadmap")])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -459,9 +595,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name or "Unknown"
     record_user_activity(user_id, username, "visit")
+    ensure_user(user_id)
     premium = get_user_premium_status(user_id)
     lang = get_user_lang(user_id)
-    text = build_start_text(premium, lang)
+    text = build_start_text(premium, lang, user_id)
     kb = build_start_keyboard(premium["is_premium"], lang)
     await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
 
@@ -475,12 +612,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start - Main menu\n"
         "/help - This help guide\n"
         "/premium - Premium status\n"
+        "/feedback - Send feedback\n"
         "/admin - Admin panel (admin only)\n\n"
         "🔍 How to Use:\n"
         "1. Tap 'START ANALYZING'\n"
         "2. Enter a Solana memecoin address\n"
         "3. Choose: Analysis, Chart, Price Alarm, or Whale Alert\n\n"
-        "💎 Premium gives you unlimited access to all features.\n\n"
+        f"🆓 Free Tier: {FREE_ANALYSIS_LIMIT} analyses + {FREE_ALARM_LIMIT} price alarms\n"
+        f"💎 Premium: ~$7.99/month for unlimited access\n\n"
         "🔗 x.com/kodarkweb3\n"
         "🔗 x.com/kodarkio"
     )
@@ -491,12 +630,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     premium = get_user_premium_status(user_id)
-    text = _build_premium_text(premium)
+    text = _build_premium_text(premium, user_id)
     kb = _build_premium_keyboard(premium)
     await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
 
 
-def _build_premium_text(premium: dict) -> str:
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /feedback command."""
+    user_id = update.effective_user.id
+    lang = get_user_lang(user_id)
+    context.user_data["waiting_for_feedback"] = True
+    await update.message.reply_text(
+        "💬 FEEDBACK\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "We value your feedback!\n\n"
+        "Please type your feedback, suggestion, or bug report below.\n"
+        "Your message will be sent to the kodark.io team.\n\n"
+        "Type your message:",
+        disable_web_page_preview=True,
+    )
+
+
+# ==================== PREMIUM TEXT & KEYBOARD ====================
+
+def _build_premium_text(premium: dict, user_id: int = None) -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
             return (
@@ -516,21 +673,23 @@ def _build_premium_text(premium: dict) -> str:
                 f"before the expiry date to keep access."
             )
     else:
-        promo_text = f"\n🎁 Use /{PROMO_CODE} for a {PROMO_DAYS}-day free trial!\n" if PROMO_CODE else ""
+        usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
         return (
             f"💎 PREMIUM STATUS\n\n"
             f"❌ Status: Inactive\n\n"
+            f"🆓 Free Tier Remaining:\n"
+            f"🔍 Analyses: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
+            f"⏰ Alarms: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n\n"
             f"🔒 Premium features include:\n"
             f"🔍 Unlimited token analysis\n"
             f"🤖 AI-powered reports\n"
             f"🐋 Whale alert notifications\n"
-            f"⏰ Price alarm system\n"
+            f"⏰ Unlimited price alarms\n"
             f"🎯 Auto-Sniper alerts\n"
             f"📊 Advanced charts\n"
             f"⚡ Priority support\n\n"
-            f"💰 Price: ~$13.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
-            f"📅 Duration: {PREMIUM_DAYS} days\n"
-            f"{promo_text}\n"
+            f"💰 Price: ~$7.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
+            f"📅 Duration: {PREMIUM_DAYS} days\n\n"
             f"💳 Pay securely via Telegram Stars\n\n"
             f"👇 Tap the button below to purchase:"
         )
@@ -547,56 +706,9 @@ def _build_premium_keyboard(premium: dict) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(kb)
     else:
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-            [InlineKeyboardButton("🎁 Enter Promo Code", callback_data="promo_info")],
+            [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
         ])
-
-
-# ==================== PROMO CODE ====================
-
-async def promo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    premium = get_user_premium_status(user_id)
-
-    if premium["is_premium"]:
-        await update.message.reply_text(
-            f"✅ You already have an active premium subscription!\nRemaining: {premium['remaining']}",
-            disable_web_page_preview=True,
-        )
-        return
-
-    if has_used_promo(user_id):
-        kb = [
-            [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
-        ]
-        await update.message.reply_text(
-            "⚠️ You have already used your free trial.\n\n"
-            "Each user can only use the promo code once.\n"
-            "To continue using kodark.io, please purchase Premium.",
-            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-        )
-        return
-
-    until = activate_premium(user_id, days=PROMO_DAYS)
-    mark_promo_used(user_id)
-    username = update.effective_user.username or update.effective_user.first_name or "Unknown"
-    record_user_activity(user_id, username, "promo")
-    date_str = until.strftime('%d.%m.%Y %H:%M')
-
-    kb = [
-        [InlineKeyboardButton("🃏 START ANALYZING", callback_data="start_analyzing")],
-        [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
-    ]
-    await update.message.reply_text(
-        f"🎉 Promo Code Activated!\n\n"
-        f"Your {PROMO_DAYS}-day free trial has been activated!\n"
-        f"📅 Expires: {date_str}\n\n"
-        f"🔓 All premium features are now unlocked.\n"
-        f"Enjoy your free trial!",
-        reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-    )
 
 
 # ==================== TELEGRAM STARS PAYMENT ====================
@@ -641,7 +753,6 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
 
     if payment.invoice_payload == "premium_subscription":
         until = activate_premium(user_id, days=PREMIUM_DAYS)
-        # Mark as paid premium (not promo-only)
         data = load_user_data()
         user_str = str(user_id)
         if user_str in data:
@@ -725,24 +836,25 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     stats = get_admin_stats()
     text = _build_admin_panel_text(stats)
-    kb = _build_admin_keyboard()
+    kb = _build_admin_keyboard(stats)
     await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
 
 
 def _build_admin_panel_text(stats: dict) -> str:
     now = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    fb_badge = f" (📩 {stats['unread_feedback']} new)" if stats.get('unread_feedback', 0) > 0 else ""
     return (
-        f"📊 ADMIN PANEL\n"
+        f"📊 ADMIN PANEL{fb_badge}\n"
         f"━━━━━━━━━━━━━━━\n\n"
         f"👥 USERS\n"
         f"├ Total Users: {stats['total_users']}\n"
+        f"├ Free Tier: {stats['free_users']}\n"
         f"├ New Today: {stats['new_today']}\n"
         f"├ Active Today: {stats['active_today']}\n"
         f"└ Active (24h): {stats['active_24h']}\n\n"
         f"💎 PREMIUM\n"
         f"├ Active Premium: {stats['premium_users']}\n"
-        f"├ Total Payments: {stats['total_payments']}\n"
-        f"└ Promo Used: {stats['promo_users']}\n\n"
+        f"└ Total Payments: {stats['total_payments']}\n\n"
         f"🔍 ANALYSES\n"
         f"├ Total: {stats['total_analyses']}\n"
         f"├ Today: {stats['today_analyses']}\n"
@@ -753,12 +865,15 @@ def _build_admin_panel_text(stats: dict) -> str:
     )
 
 
-def _build_admin_keyboard() -> InlineKeyboardMarkup:
+def _build_admin_keyboard(stats: dict = None) -> InlineKeyboardMarkup:
+    fb_count = stats.get("unread_feedback", 0) if stats else 0
+    fb_label = f"💬 Feedback ({fb_count} new)" if fb_count > 0 else "💬 Feedback"
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔄 Refresh Stats", callback_data="admin_refresh")],
         [InlineKeyboardButton("👥 Recent Users", callback_data="admin_users")],
         [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
         [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
+        [InlineKeyboardButton(fb_label, callback_data="admin_feedback")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
     ])
@@ -770,15 +885,15 @@ def _build_recent_users_text(stats: dict) -> str:
         text += "No users yet."
         return text
     for i, user in enumerate(stats["recent_users"], 1):
-        badge = "💎" if user["premium"] else "⬜"
-        promo = "🎁" if user["promo_used"] else ""
+        badge = "💎" if user["premium"] else "🆓"
+        paid = "💰" if user.get("paid") else ""
         la = user.get("last_active", "")
         if la:
             try:
                 la = datetime.fromisoformat(la).strftime("%d.%m %H:%M")
             except Exception:
                 la = "N/A"
-        text += f"{i}. {badge} @{user['username']} {promo}\n   ID: {user['id']} | Analyses: {user['analyses']}\n   Last: {la}\n\n"
+        text += f"{i}. {badge} @{user['username']} {paid}\n   ID: {user['id']} | Analyses: {user['analyses']}\n   Last: {la}\n\n"
     return text
 
 
@@ -824,19 +939,39 @@ def _build_analytics_text() -> str:
         text += f"{day_name} {d_display}   {users:<8} {analyses:<10}{marker}\n"
 
     total_users = sum(1 for k in data if not k.startswith("__"))
-    promo_users = sum(1 for k, v in data.items() if not k.startswith("__") and v.get("promo_used"))
     paid_users = stats_data.get("total_payments", 0)
 
     text += f"\n💰 CONVERSION\n"
     if total_users > 0:
-        text += f"├ Promo Rate: {(promo_users / total_users) * 100:.1f}% ({promo_users}/{total_users})\n"
         text += f"└ Paid Rate: {(paid_users / total_users) * 100:.1f}% ({paid_users}/{total_users})\n"
     else:
         text += "├ No data yet\n"
 
-    revenue = paid_users * 13.99
+    revenue = paid_users * 7.99
     text += f"\n💵 ESTIMATED REVENUE\n└ ~${revenue:.2f} ({paid_users} payment(s))\n"
     text += f"\n🕐 Generated: {now.strftime('%d.%m.%Y %H:%M:%S')}"
+    return text
+
+
+def _build_feedback_text() -> str:
+    feedbacks = get_all_feedback()
+    if not feedbacks:
+        return "💬 FEEDBACK\n━━━━━━━━━━━━━━━\n\nNo feedback received yet."
+
+    text = "💬 FEEDBACK\n━━━━━━━━━━━━━━━\n\n"
+    # Show last 10 feedbacks
+    recent = feedbacks[-10:]
+    for i, fb in enumerate(reversed(recent), 1):
+        time_str = ""
+        try:
+            time_str = datetime.fromisoformat(fb["time"]).strftime("%d.%m %H:%M")
+        except Exception:
+            time_str = "N/A"
+        read_mark = "" if fb.get("read") else " 🆕"
+        text += f"{i}. @{fb.get('username', 'Unknown')}{read_mark}\n   {time_str}\n   \"{fb['text'][:100]}\"\n\n"
+
+    text += f"Total: {len(feedbacks)} feedback(s)"
+    mark_all_feedback_read()
     return text
 
 
@@ -873,6 +1008,22 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await status_msg.edit_text(f"✅ Broadcast Complete!\n\n✔️ Sent: {sent}\n❌ Failed: {failed}\n📬 Total: {sent + failed}")
 
 
+# ==================== WELCOME MESSAGE ====================
+
+async def welcome_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send welcome message when a new user joins the bot chat."""
+    for member in update.message.new_chat_members:
+        if member.is_bot:
+            continue
+        await update.message.reply_text(
+            "👋 Welcome to kodark.io!\n\n"
+            "🚀 The ultimate Solana memecoin analyzer.\n\n"
+            f"🆓 Start with {FREE_ANALYSIS_LIMIT} free analyses + {FREE_ALARM_LIMIT} free alarms!\n\n"
+            "👉 Type /start to begin!",
+            disable_web_page_preview=True,
+        )
+
+
 # ==================== CALLBACK HANDLER ====================
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -884,7 +1035,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== HOME =====
     if query.data == "home":
         premium = get_user_premium_status(user_id)
-        text = build_start_text(premium, lang)
+        text = build_start_text(premium, lang, user_id)
         kb = build_start_keyboard(premium["is_premium"], lang)
         await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
 
@@ -917,26 +1068,32 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             kb = build_start_keyboard(premium["is_premium"], lang)
             await query.edit_message_text(
                 f"✅ {get_text('lang_changed', lang)}: {lang_name}\n\n"
-                f"{build_start_text(premium, lang)}",
+                f"{build_start_text(premium, lang, user_id)}",
                 reply_markup=kb, disable_web_page_preview=True,
             )
 
-    # ===== START ANALYZING (new flow) =====
+    # ===== START ANALYZING =====
     elif query.data == "start_analyzing":
-        premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium, lang)
+        # Check free tier or premium
+        paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
+        premium = get_user_premium_status(user_id)
+        usage_hint = ""
+        if not premium["is_premium"]:
+            usage = get_free_usage(user_id)
+            usage_hint = f"\n🆓 Free analyses remaining: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
+
         await query.edit_message_text(
             f"{get_text('btn_start_analyzing', lang)}\n\n"
-            f"{get_text('type_address', lang)}\n\n"
+            f"{get_text('type_address', lang)}\n"
+            f"{usage_hint}\n"
             f"Example:\nSo11111111111111111111111111111111111111112",
             disable_web_page_preview=True,
         )
@@ -948,6 +1105,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token_address = context.user_data.get("current_token_address")
         if not token_address:
             await query.edit_message_text("⚠️ Token address lost. Please start again.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]))
+            return
+
+        # Check analysis access
+        paywall = _check_analysis_access(user_id, lang)
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+            ]
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
         await query.edit_message_text(
@@ -990,7 +1157,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(kb)
 
-            # Store token data for chart generation
             context.user_data["current_token_data"] = token_data
 
             if len(report) > 4000:
@@ -1008,6 +1174,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== ADVANCED CHART =====
     elif query.data == "action_chart":
+        # Charts require premium
+        paywall = _check_premium_only(user_id, "Advanced Charts")
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+            ]
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
         token_data = context.user_data.get("current_token_data")
         token_address = context.user_data.get("current_token_address")
 
@@ -1038,7 +1214,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     caption=f"📊 {token_name} (${token_symbol}) — 24h Price Chart\n\nPowered by kodarkweb3 | @yms56",
                     reply_markup=InlineKeyboardMarkup(kb),
                 )
-                # Delete the "Generating chart..." message
                 try:
                     await query.delete_message()
                 except Exception:
@@ -1055,6 +1230,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== SET PRICE ALARM =====
     elif query.data == "action_alarm":
+        # Check alarm access (free tier or premium)
+        paywall = _check_alarm_access(user_id, lang)
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+            ]
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
         token_address = context.user_data.get("current_token_address")
         token_name = context.user_data.get("current_token_name", "Unknown")
         token_symbol = context.user_data.get("current_token_symbol", "???")
@@ -1072,11 +1257,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         current_price = context.user_data.get("current_token_price", "N/A")
+        premium = get_user_premium_status(user_id)
+        usage_hint = ""
+        if not premium["is_premium"]:
+            usage = get_free_usage(user_id)
+            usage_hint = f"\n🆓 Free alarms remaining: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n"
+
         await query.edit_message_text(
             f"⏰ SET PRICE ALARM\n"
             f"━━━━━━━━━━━━━━━\n\n"
             f"Token: ${token_symbol} ({token_name})\n"
-            f"Current Price: ${current_price}\n\n"
+            f"Current Price: ${current_price}\n"
+            f"{usage_hint}\n"
             f"Choose alarm type:",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
@@ -1099,21 +1291,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== WHALE ALERT =====
     elif query.data == "action_whale":
-        # Promo-only users cannot use whale alerts
-        if is_promo_only_user(user_id):
+        # Whale alerts are premium-only
+        paywall = _check_premium_only(user_id, "Whale Alerts")
+        if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_back', lang), callback_data="token_actions")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
-            await query.edit_message_text(
-                "🔒 Premium Feature\n\n"
-                "Whale Alerts are only available for Premium subscribers.\n\n"
-                "Your trial gives you access to analysis, charts, and price alarms.\n"
-                "Upgrade to Premium to unlock Whale Alerts and Sniper Alerts!\n\n"
-                "💎 Tap below to upgrade:",
-                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-            )
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
         token_address = context.user_data.get("current_token_address")
@@ -1196,20 +1382,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== MY WHALE ALERTS =====
     elif query.data == "my_whale_alerts":
-        # Promo-only users cannot use whale alerts
-        if is_promo_only_user(user_id):
+        # Whale alerts are premium-only
+        paywall = _check_premium_only(user_id, "Whale Alerts")
+        if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
-            await query.edit_message_text(
-                "🔒 Premium Feature\n\n"
-                "Whale Alerts are only available for Premium subscribers.\n\n"
-                "Your trial gives you access to analysis, charts, and price alarms.\n"
-                "Upgrade to Premium to unlock Whale Alerts and Sniper Alerts!\n\n"
-                "💎 Tap below to upgrade:",
-                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-            )
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
         alerts = get_user_whale_alerts(user_id)
@@ -1239,31 +1419,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== SNIPER ALERTS MENU =====
     elif query.data == "sniper_menu":
-        premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium, lang)
+        # Sniper alerts are premium-only
+        paywall = _check_premium_only(user_id, "Auto-Sniper Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
-            return
-
-        # Promo-only users cannot use sniper alerts
-        if is_promo_only_user(user_id):
-            kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
-            ]
-            await query.edit_message_text(
-                "🔒 Premium Feature\n\n"
-                "Auto-Sniper Alerts are only available for Premium subscribers.\n\n"
-                "Your trial gives you access to analysis, charts, and price alarms.\n"
-                "Upgrade to Premium to unlock Sniper Alerts and Whale Alerts!\n\n"
-                "💎 Tap below to upgrade:",
-                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-            )
             return
 
         status = get_user_sniper_status(user_id)
@@ -1329,12 +1492,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== SIGNALS =====
     elif query.data == "signals":
-        premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium, lang)
+        # Market signals are premium-only
+        paywall = _check_premium_only(user_id, "Market Signals")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1345,46 +1507,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== PREMIUM =====
     elif query.data == "premium":
         premium = get_user_premium_status(user_id)
-        text = _build_premium_text(premium)
+        text = _build_premium_text(premium, user_id)
         kb = _build_premium_keyboard(premium)
         await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
 
     elif query.data == "buy_premium":
         await send_premium_invoice(query, context)
 
-    elif query.data == "promo_info":
-        premium = get_user_premium_status(user_id)
-        if premium["is_premium"]:
-            kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
-            await query.edit_message_text("✅ You already have an active premium subscription!", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
-            return
-        if has_used_promo(user_id):
-            kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
-            ]
-            await query.edit_message_text(
-                "⚠️ You have already used your free trial.\n\n"
-                "Each user can only use the promo code once.\n"
-                "To continue using kodark.io, please purchase Premium.",
-                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
-            )
-            return
-        promo_display = f"/{PROMO_CODE}" if PROMO_CODE else "/promo"
-        kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+    # ===== FEEDBACK =====
+    elif query.data == "feedback_start":
+        context.user_data["waiting_for_feedback"] = True
         await query.edit_message_text(
-            f"🎁 FREE TRIAL\n\n"
-            f"Get a {PROMO_DAYS}-day free trial to unlock all premium features!\n\n"
-            f"👉 Just type: {promo_display}\n\n"
-            f"This will activate {PROMO_DAYS} days of full access including:\n"
-            f"🔍 Unlimited token analysis\n"
-            f"🤖 AI-powered reports\n"
-            f"🐋 Whale alert notifications\n"
-            f"⏰ Price alarm system\n"
-            f"🎯 Auto-Sniper alerts\n"
-            f"📊 Advanced charts\n\n"
-            f"⚠️ Each user can only use the promo code once.",
-            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            "💬 FEEDBACK\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "We value your feedback!\n\n"
+            "Please type your feedback, suggestion, or bug report below.\n"
+            "Your message will be sent to the kodark.io team.\n\n"
+            "Type your message:",
+            disable_web_page_preview=True,
         )
 
     # ===== ROADMAP =====
@@ -1404,6 +1544,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Full support for 15 languages including Turkish, Spanish, Chinese and more.\n\n"
             "📊 Advanced Charting ✅\n"
             "Professional price charts inside Telegram.\n\n"
+            "🆓 Free Tier System ✅\n"
+            f"{FREE_ANALYSIS_LIMIT} free analyses + {FREE_ALARM_LIMIT} free alarms for new users.\n\n"
+            "💬 Feedback System ✅\n"
+            "Send feedback directly to the team.\n\n"
             "━━━━━━━━━━━━━━━\n\n"
             "🔜 COMING SOON\n\n"
             "👥 Referral System\n"
@@ -1429,7 +1573,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id != ADMIN_USER_ID:
             return
         stats = get_admin_stats()
-        await query.edit_message_text(_build_admin_panel_text(stats), reply_markup=_build_admin_keyboard(), disable_web_page_preview=True)
+        await query.edit_message_text(_build_admin_panel_text(stats), reply_markup=_build_admin_keyboard(stats), disable_web_page_preview=True)
 
     elif query.data == "admin_users":
         if user_id != ADMIN_USER_ID:
@@ -1460,6 +1604,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.edit_message_text(_build_analytics_text(), reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
+    elif query.data == "admin_feedback":
+        if user_id != ADMIN_USER_ID:
+            return
+        kb = [
+            [InlineKeyboardButton("🔄 Refresh", callback_data="admin_feedback")],
+            [InlineKeyboardButton("◀️ Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(_build_feedback_text(), reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
     elif query.data == "admin_broadcast_info":
         if user_id != ADMIN_USER_ID:
             return
@@ -1482,6 +1635,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     lang = get_user_lang(user_id)
 
+    # ===== WAITING FOR FEEDBACK =====
+    if context.user_data.get("waiting_for_feedback"):
+        context.user_data["waiting_for_feedback"] = False
+        add_feedback(user_id, username, text)
+        kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
+        await update.message.reply_text(
+            "✅ Thank you for your feedback!\n\n"
+            "Your message has been sent to the kodark.io team.\n"
+            "We appreciate your input!",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+        # Notify admin
+        try:
+            if ADMIN_USER_ID:
+                await context.bot.send_message(
+                    chat_id=ADMIN_USER_ID,
+                    text=f"📩 New Feedback!\n\nFrom: @{username} (ID: {user_id})\n\n\"{text[:500]}\"",
+                    disable_web_page_preview=True,
+                )
+        except Exception as e:
+            logger.error(f"Admin feedback notification error: {e}")
+        return
+
     # ===== WAITING FOR ALARM VALUE =====
     if context.user_data.get("waiting_for_alarm_value"):
         context.user_data["waiting_for_alarm_value"] = False
@@ -1500,12 +1676,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ Invalid value. Please enter a valid number.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
             return
 
+        # Check alarm access again before setting
+        paywall = _check_alarm_access(user_id, lang)
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
+            ]
+            await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
         result = add_price_alarm(user_id, token_address, token_name, token_symbol, alarm_type, value, current_price)
 
         if "error" in result:
             kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
             await update.message.reply_text(f"⚠️ {result['error']}", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
         else:
+            # Increment alarm count for free tier tracking
+            increment_alarm_count(user_id)
             alarm = result["alarm"]
             kb = [
                 [InlineKeyboardButton("⏰ My Alarms", callback_data="my_alarms")],
@@ -1525,11 +1713,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("waiting_for_token"):
         context.user_data["waiting_for_token"] = False
 
-        premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium, lang)
+        # Check analysis access
+        paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1546,7 +1734,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Fetch token info to show action choices
         loading_msg = await update.message.reply_text("⏳ Fetching token data...", disable_web_page_preview=True)
 
         try:
@@ -1562,7 +1749,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             change_24h = float(token_data.get("price_change_24h", 0) or 0)
             change_emoji = "🟢" if change_24h >= 0 else "🔴"
 
-            # Store in context for later use
             context.user_data["current_token_address"] = token_address
             context.user_data["current_token_name"] = token_name
             context.user_data["current_token_symbol"] = token_symbol
@@ -1598,12 +1784,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== AUTO-DETECT TOKEN ADDRESS =====
     if len(text) >= 32 and len(text) <= 50 and text.isalnum():
-        premium = get_user_premium_status(user_id)
-        paywall = _check_premium_access(premium, lang)
+        paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$13.99", callback_data="buy_premium")],
-                [InlineKeyboardButton("🎁 Promo Code", callback_data="promo_info")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1614,10 +1798,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         kb = [[InlineKeyboardButton("🏠 Main Menu", callback_data="home")]]
         await update.message.reply_text(
-            "👋 Need help?\n\n"
+            "👋 Welcome to kodark.io!\n\n"
             "🃏 /start - Main Menu\n"
             "📖 /help - Help Guide\n"
-            "💎 /premium - Premium Status\n\n"
+            "💎 /premium - Premium Status\n"
+            "💬 /feedback - Send Feedback\n\n"
             "Or just send a Solana memecoin address!",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
@@ -1629,7 +1814,7 @@ async def background_price_check(app):
     """Background task: check price alarms every 2 minutes."""
     while True:
         try:
-            await asyncio.sleep(120)  # 2 minutes
+            await asyncio.sleep(120)
 
             watched_tokens = get_all_watched_tokens()
             if not watched_tokens:
@@ -1658,10 +1843,7 @@ async def background_price_check(app):
                     current_price = t["current_price"]
                     uid = t["user_id"]
 
-                    user_premium = get_user_premium_status(uid)
-                    if not user_premium["is_premium"]:
-                        continue
-
+                    # For free users, alarms still work if they were set within free tier
                     text = (
                         f"🔔 PRICE ALARM TRIGGERED!\n"
                         f"━━━━━━━━━━━━━━━\n\n"
@@ -1683,7 +1865,7 @@ async def background_whale_check(app):
     """Background task: check whale activity every 3 minutes."""
     while True:
         try:
-            await asyncio.sleep(180)  # 3 minutes
+            await asyncio.sleep(180)
 
             whale_tokens = get_all_whale_tokens()
             if not whale_tokens:
@@ -1722,7 +1904,7 @@ async def background_sniper_check(app):
     """Background task: check for new token launches every 5 minutes."""
     while True:
         try:
-            await asyncio.sleep(300)  # 5 minutes
+            await asyncio.sleep(300)
 
             platform_users = get_all_sniper_subscribers()
             has_subscribers = any(users for users in platform_users.values())
@@ -1737,7 +1919,6 @@ async def background_sniper_check(app):
                 platform = token.get("platform", "unknown")
                 alert_text = format_sniper_alert(token)
 
-                # Send to subscribers of this platform
                 notified = set()
                 for plat, users in platform_users.items():
                     if plat == platform or plat == "all":
@@ -1770,7 +1951,7 @@ async def post_init(app):
 # ==================== MAIN ====================
 
 def main():
-    logger.info("kodark.io Bot v3.0 starting...")
+    logger.info("kodark.io Bot v4.0 starting...")
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
@@ -1778,20 +1959,22 @@ def main():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("premium", premium_command))
+    app.add_handler(CommandHandler("feedback", feedback_command))
     app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("broadcast", broadcast_command))
-    if PROMO_CODE:
-        app.add_handler(CommandHandler(PROMO_CODE, promo_command))
 
     # Payment handlers
     app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
 
+    # Welcome handler for new chat members
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_user))
+
     # Callback & message handlers
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot v3.0 started successfully! Polling...")
+    logger.info("Bot v4.0 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
