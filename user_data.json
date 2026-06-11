@@ -81,12 +81,16 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T18:21:45.066320",
-    "last_active": "2026-06-11T18:21:45.066314",
+    "last_active": "2026-06-11T18:22:46.886668",
     "username": "Crypto",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-11T18:21:45.066314"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-11T18:22:46.886668"
       }
     ]
   }
