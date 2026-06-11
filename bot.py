@@ -91,50 +91,186 @@ FREE_ANALYSIS_LIMIT = 3
 FREE_ALARM_LIMIT = 3
 
 # ==================== PERSISTENT DATA STORAGE ====================
-# Use DATA_DIR env variable for Railway volume persistence
-# Set DATA_DIR=/data in Railway and mount a volume at /data
+# Uses GitHub API to persist data across Railway redeployments.
+# Requires GITHUB_TOKEN env variable with repo write access.
+# Data is stored in the 'data' branch of the same repo.
 
+import base64
+import requests as http_requests
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = os.getenv("GITHUB_REPO", "kodarkweb3/koanalyzer-bot")
+GITHUB_BRANCH = os.getenv("GITHUB_DATA_BRANCH", "data")
+
+# Local cache to reduce API calls
+_user_data_cache = None
+_feedback_cache = None
+_user_data_sha = None
+_feedback_sha = None
+
+
+def _github_headers():
+    return {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+
+def _github_read_file(filename: str) -> tuple:
+    """Read a file from GitHub data branch. Returns (content_dict_or_list, sha)."""
+    if not GITHUB_TOKEN:
+        logger.warning("GITHUB_TOKEN not set, using local file fallback")
+        return None, None
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{filename}?ref={GITHUB_BRANCH}"
+        resp = http_requests.get(url, headers=_github_headers(), timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            content = base64.b64decode(data["content"]).decode("utf-8")
+            return json.loads(content), data["sha"]
+        elif resp.status_code == 404:
+            # File or branch doesn't exist yet
+            return None, None
+        else:
+            logger.error(f"GitHub read error {resp.status_code}: {resp.text[:200]}")
+            return None, None
+    except Exception as e:
+        logger.error(f"GitHub read exception: {e}")
+        return None, None
+
+
+def _github_write_file(filename: str, content, sha=None):
+    """Write content to GitHub data branch."""
+    if not GITHUB_TOKEN:
+        logger.warning("GITHUB_TOKEN not set, skipping GitHub write")
+        return
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{filename}"
+        content_str = json.dumps(content, indent=2, default=str)
+        encoded = base64.b64encode(content_str.encode("utf-8")).decode("utf-8")
+        payload = {
+            "message": f"Auto-update {filename}",
+            "content": encoded,
+            "branch": GITHUB_BRANCH,
+        }
+        if sha:
+            payload["sha"] = sha
+        resp = http_requests.put(url, headers=_github_headers(), json=payload, timeout=15)
+        if resp.status_code in (200, 201):
+            return resp.json().get("content", {}).get("sha")
+        elif resp.status_code == 404 and not sha:
+            # Branch might not exist, create it
+            _ensure_data_branch()
+            resp = http_requests.put(url, headers=_github_headers(), json=payload, timeout=15)
+            if resp.status_code in (200, 201):
+                return resp.json().get("content", {}).get("sha")
+        logger.error(f"GitHub write error {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        logger.error(f"GitHub write exception: {e}")
+    return None
+
+
+def _ensure_data_branch():
+    """Create the data branch if it doesn't exist."""
+    try:
+        # Get main branch SHA
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/git/ref/heads/main"
+        resp = http_requests.get(url, headers=_github_headers(), timeout=10)
+        if resp.status_code != 200:
+            return
+        main_sha = resp.json()["object"]["sha"]
+        # Create data branch
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/git/refs"
+        payload = {"ref": f"refs/heads/{GITHUB_BRANCH}", "sha": main_sha}
+        http_requests.post(url, headers=_github_headers(), json=payload, timeout=10)
+    except Exception as e:
+        logger.error(f"Branch creation error: {e}")
+
+
+# Local file fallback (used when GITHUB_TOKEN is not set)
 DATA_DIR = os.getenv("DATA_DIR", ".")
 os.makedirs(DATA_DIR, exist_ok=True)
-
 DATA_FILE = os.path.join(DATA_DIR, "user_data.json")
 FEEDBACK_FILE = os.path.join(DATA_DIR, "feedback.json")
 
 
 def load_user_data() -> dict:
+    global _user_data_cache, _user_data_sha
+    # Return cache if available
+    if _user_data_cache is not None:
+        return _user_data_cache
+    # Try GitHub first
+    if GITHUB_TOKEN:
+        content, sha = _github_read_file("user_data.json")
+        if content is not None:
+            _user_data_cache = content
+            _user_data_sha = sha
+            return content
+    # Fallback to local file
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
-                return json.load(f)
+                _user_data_cache = json.load(f)
+                return _user_data_cache
     except Exception as e:
         logger.error(f"Data load error: {e}")
+    _user_data_cache = {}
     return {}
 
 
 def save_user_data(data: dict):
+    global _user_data_cache, _user_data_sha
+    _user_data_cache = data
+    # Save to local file
     try:
         with open(DATA_FILE, "w") as f:
             json.dump(data, f, indent=2, default=str)
     except Exception as e:
-        logger.error(f"Data save error: {e}")
+        logger.error(f"Local data save error: {e}")
+    # Save to GitHub
+    if GITHUB_TOKEN:
+        new_sha = _github_write_file("user_data.json", data, _user_data_sha)
+        if new_sha:
+            _user_data_sha = new_sha
 
 
 def load_feedback() -> list:
+    global _feedback_cache, _feedback_sha
+    if _feedback_cache is not None:
+        return _feedback_cache
+    # Try GitHub first
+    if GITHUB_TOKEN:
+        content, sha = _github_read_file("feedback.json")
+        if content is not None:
+            _feedback_cache = content
+            _feedback_sha = sha
+            return content
+    # Fallback to local file
     try:
         if os.path.exists(FEEDBACK_FILE):
             with open(FEEDBACK_FILE, "r") as f:
-                return json.load(f)
+                _feedback_cache = json.load(f)
+                return _feedback_cache
     except Exception as e:
         logger.error(f"Feedback load error: {e}")
+    _feedback_cache = []
     return []
 
 
 def save_feedback(feedbacks: list):
+    global _feedback_cache, _feedback_sha
+    _feedback_cache = feedbacks
+    # Save to local file
     try:
         with open(FEEDBACK_FILE, "w") as f:
             json.dump(feedbacks, f, indent=2, default=str)
     except Exception as e:
-        logger.error(f"Feedback save error: {e}")
+        logger.error(f"Local feedback save error: {e}")
+    # Save to GitHub
+    if GITHUB_TOKEN:
+        new_sha = _github_write_file("feedback.json", feedbacks, _feedback_sha)
+        if new_sha:
+            _feedback_sha = new_sha
 
 
 # ==================== USER HELPERS ====================
