@@ -41,7 +41,8 @@
     "daily_users": {
       "2026-06-11": [
         "2043981845",
-        "6646602626"
+        "6646602626",
+        "1921080471"
       ]
     }
   },
@@ -70,6 +71,22 @@
         "gifted_by": 2043981845,
         "days": 30,
         "date": "2026-06-11T15:55:05.725272"
+      }
+    ]
+  },
+  "1921080471": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-11T18:21:45.066320",
+    "last_active": "2026-06-11T18:21:45.066314",
+    "username": "Crypto",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-11T18:21:45.066314"
       }
     ]
   }
