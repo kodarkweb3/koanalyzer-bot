@@ -6,7 +6,7 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T08:40:45.037469",
-    "last_active": "2026-06-11T08:42:08.180683",
+    "last_active": "2026-06-11T08:42:20.530707",
     "username": "yms56",
     "activity_log": [
       {
@@ -16,14 +16,20 @@
       {
         "type": "message",
         "time": "2026-06-11T08:42:08.180683"
+      },
+      {
+        "type": "analysis",
+        "time": "2026-06-11T08:42:20.530707"
       }
     ],
     "last_analysis": "2026-06-11T08:42:19.571623"
   },
   "__stats__": {
-    "total_analyses": 0,
+    "total_analyses": 1,
     "total_payments": 0,
-    "daily_analyses": {},
+    "daily_analyses": {
+      "2026-06-11": 1
+    },
     "daily_users": {
       "2026-06-11": [
         "2043981845"
