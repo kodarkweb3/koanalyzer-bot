@@ -82,7 +82,7 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN not found! Check your .env file.")
 
-PREMIUM_PRICE_STARS = 550  # ~$7.99
+PREMIUM_PRICE_STARS = 1520  # ~$21.99
 PREMIUM_DAYS = 30
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
@@ -623,7 +623,7 @@ def _check_analysis_access(user_id: int, lang: str = "en") -> str:
         f"⏰ Unlimited price alarms\n"
         f"🎯 Auto-Sniper alerts\n"
         f"📊 Advanced charts\n\n"
-        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
         f"👇 Tap below to upgrade:"
     )
 
@@ -642,7 +642,7 @@ def _check_alarm_access(user_id: int, lang: str = "en") -> str:
         f"🔒 Free Alarms Used Up\n\n"
         f"You have used all {FREE_ALARM_LIMIT} free price alarms.\n\n"
         f"💎 Upgrade to Premium for unlimited alarms!\n\n"
-        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
         f"👇 Tap below to upgrade:"
     )
 
@@ -660,7 +660,7 @@ def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
         f"🔍 {FREE_ANALYSIS_LIMIT} token analyses\n"
         f"⏰ {FREE_ALARM_LIMIT} price alarms\n\n"
         f"💎 Upgrade to Premium to unlock everything!\n\n"
-        f"💰 Only ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
+        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
         f"👇 Tap below to upgrade:"
     )
 
@@ -681,7 +681,7 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
             f"🆓 Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms remaining"
         )
 
-    payment_line = "" if premium["is_premium"] else f"\n💎 Premium: ~$7.99/month ({PREMIUM_PRICE_STARS} Stars)\n"
+    payment_line = "" if premium["is_premium"] else f"\n💎 Premium: ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n"
 
     text = (
         f"{get_text('start_title', lang)}\n"
@@ -755,7 +755,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "2. Enter a Solana memecoin address\n"
         "3. Choose: Analysis, Chart, Price Alarm, or Whale Alert\n\n"
         f"🆓 Free Tier: {FREE_ANALYSIS_LIMIT} analyses + {FREE_ALARM_LIMIT} price alarms\n"
-        f"💎 Premium: ~$7.99/month for unlimited access\n\n"
+        f"💎 Premium: ~$21.99/month for unlimited access\n\n"
         "🔗 x.com/kodarkweb3\n"
         "🔗 x.com/kodarkio"
     )
@@ -824,7 +824,7 @@ def _build_premium_text(premium: dict, user_id: int = None) -> str:
             f"🎯 Auto-Sniper alerts\n"
             f"📊 Advanced charts\n"
             f"⚡ Priority support\n\n"
-            f"💰 Price: ~$7.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
+            f"💰 Price: ~$21.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
             f"📅 Duration: {PREMIUM_DAYS} days\n\n"
             f"💳 Pay securely via Telegram Stars\n\n"
             f"👇 Tap the button below to purchase:"
@@ -842,7 +842,7 @@ def _build_premium_keyboard(premium: dict) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(kb)
     else:
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+            [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
             [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
         ])
 
@@ -1214,7 +1214,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1247,7 +1247,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1314,7 +1314,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Advanced Charts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1370,7 +1370,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_alarm_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1431,7 +1431,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Whale Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_back', lang), callback_data="token_actions")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
@@ -1522,7 +1522,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Whale Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1559,7 +1559,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Auto-Sniper Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1632,7 +1632,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Market Signals")
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1816,7 +1816,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_alarm_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1853,7 +1853,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1923,7 +1923,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("💎 Buy Premium - ~$7.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("💎 Buy Premium - ~$21.99", callback_data="buy_premium")],
                 [InlineKeyboardButton("🏠 Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
