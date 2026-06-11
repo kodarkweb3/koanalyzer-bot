@@ -2,7 +2,7 @@
   "2043981845": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T08:40:45.037469",
@@ -17,7 +17,8 @@
         "type": "message",
         "time": "2026-06-11T08:42:08.180683"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-11T08:42:19.571623"
   },
   "__stats__": {
     "total_analyses": 0,
