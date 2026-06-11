@@ -1,5 +1,5 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v5.0
+kodark.io - Solana Memecoins Analyzer Bot v5.1
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
 Smart Money Wallet Tracker | Daily Market Summary
@@ -574,11 +574,26 @@ def update_wallet_last_tx(user_id: int, wallet_address: str, signature: str):
     save_user_data(data)
 
 
+# Free Solana RPC endpoints (rotate to avoid rate limits)
+SOLANA_RPC_ENDPOINTS = [
+    "https://api.mainnet-beta.solana.com",
+    "https://rpc.ankr.com/solana",
+]
+_rpc_index = 0
+
+
+def _get_solana_rpc_url() -> str:
+    """Get next Solana RPC endpoint (round-robin)."""
+    global _rpc_index
+    url = SOLANA_RPC_ENDPOINTS[_rpc_index % len(SOLANA_RPC_ENDPOINTS)]
+    _rpc_index += 1
+    return url
+
+
 async def check_wallet_transactions(wallet_address: str, last_signature: str = None) -> list:
-    """Check recent transactions for a wallet using Helius or Solscan API."""
+    """Check recent transactions for a wallet using free Solana RPC (no API key needed)."""
     try:
-        # Use free Solana RPC to get recent signatures
-        url = "https://api.mainnet-beta.solana.com"
+        url = _get_solana_rpc_url()
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -591,11 +606,21 @@ async def check_wallet_transactions(wallet_address: str, last_signature: str = N
         if last_signature:
             payload["params"][1]["until"] = last_signature
 
-        resp = http_requests.post(url, json=payload, timeout=10)
-        if resp.status_code != 200:
+        resp = http_requests.post(url, json=payload, timeout=15)
+
+        # If rate limited, try fallback RPC
+        if resp.status_code == 429 or resp.status_code != 200:
+            fallback_url = _get_solana_rpc_url()
+            resp = http_requests.post(fallback_url, json=payload, timeout=15)
+            if resp.status_code != 200:
+                return []
+
+        data = resp.json()
+        if "error" in data:
+            logger.warning(f"RPC error for {wallet_address[:8]}: {data['error']}")
             return []
 
-        result = resp.json().get("result", [])
+        result = data.get("result", [])
         if not result:
             return []
 
@@ -620,9 +645,9 @@ async def check_wallet_transactions(wallet_address: str, last_signature: str = N
 
 
 async def get_transaction_details(signature: str) -> dict:
-    """Get parsed transaction details from Solana RPC."""
+    """Get parsed transaction details from free Solana RPC."""
     try:
-        url = "https://api.mainnet-beta.solana.com"
+        url = _get_solana_rpc_url()
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -1350,6 +1375,7 @@ def _build_admin_keyboard(stats: dict = None) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🔄 Refresh Stats", callback_data="admin_refresh")],
         [InlineKeyboardButton("👥 Recent Users", callback_data="admin_users")],
         [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
+        [InlineKeyboardButton("🎁 Premium Hediye Et", callback_data="admin_gift_premium")],
         [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
         [InlineKeyboardButton(fb_label, callback_data="admin_feedback")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
@@ -2093,6 +2119,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.edit_message_text(_build_feedback_text(), reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
+    elif query.data == "admin_gift_premium":
+        if user_id != ADMIN_USER_ID:
+            return
+        context.user_data["waiting_for_gift_premium_id"] = True
+        kb = [[InlineKeyboardButton("❌ İptal", callback_data="admin_refresh")]]
+        await query.edit_message_text(
+            "🎁 PREMİUM HEDİYE ET\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "Kullanıcıya 30 gün ücretsiz premium hediye edebilirsiniz.\n\n"
+            "📝 Hediye etmek istediğiniz kullanıcının\n"
+            "Telegram ID'sini girin:\n\n"
+            "💡 Not: Kullanıcı ID'sini admin panelindeki\n"
+            "'Recent Users' veya 'Premium Users' listesinden\n"
+            "bulabilirsiniz.",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
     elif query.data == "admin_broadcast_info":
         if user_id != ADMIN_USER_ID:
             return
@@ -2213,6 +2256,88 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     record_user_activity(user_id, username, "message")
     text = update.message.text.strip()
     lang = get_user_lang(user_id)
+
+    # ===== ADMIN: WAITING FOR GIFT PREMIUM USER ID =====
+    if context.user_data.get("waiting_for_gift_premium_id"):
+        context.user_data["waiting_for_gift_premium_id"] = False
+
+        # Only admin can use this
+        if user_id != ADMIN_USER_ID:
+            return
+
+        # Parse the Telegram ID
+        try:
+            target_user_id = int(text.strip())
+        except ValueError:
+            kb = [[InlineKeyboardButton("🎁 Tekrar Dene", callback_data="admin_gift_premium")],
+                  [InlineKeyboardButton("◀️ Admin Panel", callback_data="admin_refresh")]]
+            await update.message.reply_text(
+                "⚠️ Geçersiz ID! Lütfen sayısal bir Telegram ID girin.",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+            return
+
+        # Activate 30 days premium for the target user
+        until = activate_premium(target_user_id, days=30)
+        date_str = until.strftime('%d.%m.%Y %H:%M')
+
+        # Log the gift in user data
+        data = load_user_data()
+        target_str = str(target_user_id)
+        if target_str not in data:
+            data[target_str] = _new_user_record()
+        if "gift_log" not in data[target_str]:
+            data[target_str]["gift_log"] = []
+        data[target_str]["gift_log"].append({
+            "gifted_by": user_id,
+            "days": 30,
+            "date": datetime.now().isoformat(),
+        })
+        save_user_data(data)
+
+        target_username = data.get(target_str, {}).get("username", "Bilinmiyor")
+
+        # Notify the target user
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=(
+                    "🎁 TEBLİKLER! PREMİUM HEDİYE!\n"
+                    "━━━━━━━━━━━━━━━\n\n"
+                    "✅ Size 30 günlük Premium üyelik hediye edildi!\n\n"
+                    f"📅 Bitiş: {date_str}\n\n"
+                    "🔓 Tüm premium özellikler aktif:\n"
+                    "• Sınırsız token analizi\n"
+                    "• Smart Money Wallet Tracker\n"
+                    "• Whale Alert bildirimleri\n"
+                    "• Auto-Sniper alerts\n"
+                    "• Günlük piyasa özeti\n\n"
+                    "Keyifli kullanımlar! 🚀\n\n"
+                    "— kodark.io Team"
+                ),
+                disable_web_page_preview=True,
+            )
+            notify_status = "✅ Kullanıcıya bildirim gönderildi"
+        except Exception as e:
+            logger.error(f"Gift premium notification error: {e}")
+            notify_status = "⚠️ Kullanıcıya bildirim gönderilemedi (bot'u başlatmamış olabilir)"
+
+        # Confirm to admin
+        kb = [
+            [InlineKeyboardButton("🎁 Başka Birine Hediye Et", callback_data="admin_gift_premium")],
+            [InlineKeyboardButton("◀️ Admin Panel", callback_data="admin_refresh")],
+        ]
+        await update.message.reply_text(
+            f"✅ PREMİUM HEDİYE EDİLDİ!\n"
+            f"━━━━━━━━━━━━━━━\n\n"
+            f"👤 Kullanıcı: @{target_username}\n"
+            f"🆔 ID: {target_user_id}\n"
+            f"📅 Süre: 30 gün\n"
+            f"📆 Bitiş: {date_str}\n\n"
+            f"{notify_status}",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+        return
 
     # ===== WAITING FOR WALLET ADDRESS =====
     if context.user_data.get("waiting_for_wallet_address"):
@@ -2725,7 +2850,7 @@ async def post_init(app):
 # ==================== MAIN ====================
 
 def main():
-    logger.info("kodark.io Bot v5.0 starting...")
+    logger.info("kodark.io Bot v5.1 starting...")
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
@@ -2748,7 +2873,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot v5.0 started successfully! Polling...")
+    logger.info("Bot v5.1 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
