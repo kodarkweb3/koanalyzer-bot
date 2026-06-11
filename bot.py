@@ -1,7 +1,8 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v4.0
+kodark.io - Solana Memecoins Analyzer Bot v5.0
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
+Smart Money Wallet Tracker | Daily Market Summary
 Free Tier (3 analyses + 3 alarms) | Feedback System
 Telegram Stars Payment System
 """
@@ -89,6 +90,14 @@ ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 # Free tier limits
 FREE_ANALYSIS_LIMIT = 3
 FREE_ALARM_LIMIT = 3
+
+# Smart Money Wallet Tracker limits
+MAX_TRACKED_WALLETS_PREMIUM = 5
+WALLET_CHECK_INTERVAL = 180  # seconds (3 minutes)
+
+# Daily Market Summary
+DAILY_SUMMARY_HOUR = 9  # UTC hour to send daily summary
+DAILY_SUMMARY_ENABLED = True
 
 # ==================== PERSISTENT DATA STORAGE ====================
 # Uses GitHub API to persist data across Railway redeployments.
@@ -462,6 +471,338 @@ def mark_all_feedback_read():
     save_feedback(feedbacks)
 
 
+# ==================== SMART MONEY WALLET TRACKER ====================
+
+def get_tracked_wallets(user_id: int) -> list:
+    """Get list of wallets tracked by a user."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        return []
+    return data[user_str].get("tracked_wallets", [])
+
+
+def add_tracked_wallet(user_id: int, wallet_address: str, label: str = "") -> dict:
+    """Add a wallet to track. Returns success/error dict."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        data[user_str] = _new_user_record()
+
+    wallets = data[user_str].get("tracked_wallets", [])
+
+    # Check limit
+    if len(wallets) >= MAX_TRACKED_WALLETS_PREMIUM:
+        return {"error": f"Maximum {MAX_TRACKED_WALLETS_PREMIUM} wallets allowed."}
+
+    # Check duplicate
+    for w in wallets:
+        if w["address"] == wallet_address:
+            return {"error": "This wallet is already being tracked."}
+
+    # Validate address format (Solana addresses are 32-44 chars base58)
+    if len(wallet_address) < 32 or len(wallet_address) > 50:
+        return {"error": "Invalid Solana wallet address."}
+
+    wallet_entry = {
+        "address": wallet_address,
+        "label": label or f"Wallet #{len(wallets) + 1}",
+        "added": datetime.now().isoformat(),
+        "last_checked": None,
+        "last_tx_signature": None,
+    }
+    wallets.append(wallet_entry)
+    data[user_str]["tracked_wallets"] = wallets
+    save_user_data(data)
+    return {"success": True, "wallet": wallet_entry, "total": len(wallets)}
+
+
+def remove_tracked_wallet(user_id: int, wallet_address: str) -> bool:
+    """Remove a tracked wallet."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        return False
+    wallets = data[user_str].get("tracked_wallets", [])
+    original_len = len(wallets)
+    wallets = [w for w in wallets if w["address"] != wallet_address]
+    if len(wallets) == original_len:
+        return False
+    data[user_str]["tracked_wallets"] = wallets
+    save_user_data(data)
+    return True
+
+
+def remove_all_tracked_wallets(user_id: int) -> int:
+    """Remove all tracked wallets. Returns count removed."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        return 0
+    count = len(data[user_str].get("tracked_wallets", []))
+    data[user_str]["tracked_wallets"] = []
+    save_user_data(data)
+    return count
+
+
+def get_all_wallet_trackers() -> dict:
+    """Get all users with tracked wallets. Returns {user_id: [wallets]}."""
+    data = load_user_data()
+    result = {}
+    for user_str, ud in data.items():
+        if user_str.startswith("__"):
+            continue
+        wallets = ud.get("tracked_wallets", [])
+        if wallets:
+            result[user_str] = wallets
+    return result
+
+
+def update_wallet_last_tx(user_id: int, wallet_address: str, signature: str):
+    """Update the last known transaction signature for a tracked wallet."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        return
+    wallets = data[user_str].get("tracked_wallets", [])
+    for w in wallets:
+        if w["address"] == wallet_address:
+            w["last_tx_signature"] = signature
+            w["last_checked"] = datetime.now().isoformat()
+            break
+    data[user_str]["tracked_wallets"] = wallets
+    save_user_data(data)
+
+
+async def check_wallet_transactions(wallet_address: str, last_signature: str = None) -> list:
+    """Check recent transactions for a wallet using Helius or Solscan API."""
+    try:
+        # Use free Solana RPC to get recent signatures
+        url = "https://api.mainnet-beta.solana.com"
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSignaturesForAddress",
+            "params": [
+                wallet_address,
+                {"limit": 5}
+            ]
+        }
+        if last_signature:
+            payload["params"][1]["until"] = last_signature
+
+        resp = http_requests.post(url, json=payload, timeout=10)
+        if resp.status_code != 200:
+            return []
+
+        result = resp.json().get("result", [])
+        if not result:
+            return []
+
+        # Get transaction details for new transactions
+        new_txs = []
+        for sig_info in result[:3]:  # Max 3 new txs at a time
+            sig = sig_info.get("signature")
+            if sig == last_signature:
+                break
+            new_txs.append({
+                "signature": sig,
+                "slot": sig_info.get("slot"),
+                "block_time": sig_info.get("blockTime"),
+                "err": sig_info.get("err"),
+            })
+
+        return new_txs
+
+    except Exception as e:
+        logger.error(f"Wallet tx check error for {wallet_address}: {e}")
+        return []
+
+
+async def get_transaction_details(signature: str) -> dict:
+    """Get parsed transaction details from Solana RPC."""
+    try:
+        url = "https://api.mainnet-beta.solana.com"
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTransaction",
+            "params": [
+                signature,
+                {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}
+            ]
+        }
+        resp = http_requests.post(url, json=payload, timeout=10)
+        if resp.status_code != 200:
+            return {}
+
+        result = resp.json().get("result")
+        if not result:
+            return {}
+
+        # Parse basic info
+        meta = result.get("meta", {})
+        pre_balances = meta.get("preBalances", [])
+        post_balances = meta.get("postBalances", [])
+
+        # Detect token transfers
+        pre_token = meta.get("preTokenBalances", [])
+        post_token = meta.get("postTokenBalances", [])
+
+        tx_type = "unknown"
+        details = ""
+
+        # Simple SOL transfer detection
+        if pre_balances and post_balances:
+            sol_change = (post_balances[0] - pre_balances[0]) / 1_000_000_000
+            if abs(sol_change) > 0.01:
+                if sol_change > 0:
+                    tx_type = "receive_sol"
+                    details = f"+{sol_change:.4f} SOL"
+                else:
+                    tx_type = "send_sol"
+                    details = f"{sol_change:.4f} SOL"
+
+        # Token swap/transfer detection
+        if post_token and pre_token:
+            for pt in post_token:
+                mint = pt.get("mint", "")
+                ui_amount = pt.get("uiTokenAmount", {}).get("uiAmount", 0)
+                # Find matching pre-balance
+                pre_amount = 0
+                for prt in pre_token:
+                    if prt.get("mint") == mint:
+                        pre_amount = prt.get("uiTokenAmount", {}).get("uiAmount", 0)
+                        break
+                if ui_amount and pre_amount is not None:
+                    change = (ui_amount or 0) - (pre_amount or 0)
+                    if change > 0:
+                        tx_type = "buy_token"
+                        details = f"Bought token {mint[:8]}..."
+                    elif change < 0:
+                        tx_type = "sell_token"
+                        details = f"Sold token {mint[:8]}..."
+
+        return {
+            "signature": signature,
+            "type": tx_type,
+            "details": details,
+            "fee": meta.get("fee", 0) / 1_000_000_000,
+            "success": meta.get("err") is None,
+        }
+
+    except Exception as e:
+        logger.error(f"Transaction detail error for {signature}: {e}")
+        return {"signature": signature, "type": "unknown", "details": "Could not parse", "fee": 0, "success": True}
+
+
+# ==================== DAILY MARKET SUMMARY ====================
+
+def get_daily_summary_subscribers() -> list:
+    """Get all premium users who should receive daily summary."""
+    data = load_user_data()
+    now = datetime.now()
+    subscribers = []
+    for user_str, ud in data.items():
+        if user_str.startswith("__"):
+            continue
+        # Only premium users get daily summary
+        if ud.get("premium_until"):
+            try:
+                until = datetime.fromisoformat(ud["premium_until"])
+                if until > now:
+                    # Check if user hasn't opted out
+                    if ud.get("daily_summary", True):  # Default enabled for premium
+                        subscribers.append(int(user_str))
+            except Exception:
+                pass
+    return subscribers
+
+
+def toggle_daily_summary(user_id: int) -> bool:
+    """Toggle daily summary for a user. Returns new state."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        return False
+    current = data[user_str].get("daily_summary", True)
+    data[user_str]["daily_summary"] = not current
+    save_user_data(data)
+    return not current
+
+
+async def build_daily_summary_text() -> str:
+    """Build the daily market summary message."""
+    try:
+        fng = get_fear_greed_index()
+        btc = get_btc_dominance()
+        sol = get_solana_price()
+
+        # Fear & Greed
+        fng_text = "N/A"
+        if "error" not in fng:
+            fng_text = f"{fng['emoji']} {fng['value']}/100 - {fng['classification']}"
+
+        # BTC Dominance
+        btc_text = "N/A"
+        mcap_text = "N/A"
+        mcap_change = "N/A"
+        if "error" not in btc:
+            btc_text = f"{btc['btc_dominance']}%"
+            total_mcap = btc.get("total_market_cap", 0)
+            if total_mcap > 1_000_000_000_000:
+                mcap_text = f"${total_mcap/1_000_000_000_000:.2f}T"
+            elif total_mcap > 1_000_000_000:
+                mcap_text = f"${total_mcap/1_000_000_000:.2f}B"
+            mcap_change = f"{btc.get('market_cap_change_24h', 'N/A')}%"
+
+        # SOL Price
+        sol_text = "N/A"
+        sol_change = ""
+        if "error" not in sol:
+            change_emoji = "\U0001f7e2" if sol["change_24h"] >= 0 else "\U0001f534"
+            sol_text = f"${sol['price']:.2f}"
+            sol_change = f"{change_emoji} {sol['change_24h']:+.2f}%"
+
+        # Market mood
+        mood = "Neutral"
+        if "error" not in fng:
+            val = int(fng.get("value", 50))
+            if val >= 75:
+                mood = "Extreme Greed - Be cautious with entries"
+            elif val >= 55:
+                mood = "Greed - Market is optimistic"
+            elif val >= 45:
+                mood = "Neutral - Watch for breakouts"
+            elif val >= 25:
+                mood = "Fear - Potential buying opportunities"
+            else:
+                mood = "Extreme Fear - High risk, high reward zone"
+
+        today = datetime.now().strftime("%d %B %Y")
+
+        summary = (
+            f"\U0001f4ca DAILY MARKET SUMMARY\n"
+            f"\U0001f4c5 {today}\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"\u25ce SOL: {sol_text} {sol_change}\n"
+            f"\u20bf BTC Dominance: {btc_text}\n"
+            f"\U0001f30d Total Market Cap: {mcap_text}\n"
+            f"\U0001f4c8 24h Change: {mcap_change}\n\n"
+            f"\U0001f631 Fear & Greed: {fng_text}\n\n"
+            f"\U0001f4a1 Market Mood: {mood}\n\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f4ce Tip: Use /start to analyze any Solana token\n"
+            f"\U0001f514 Disable: Settings > Daily Summary\n\n"
+            f"\u2014 kodark.io Premium"
+        )
+        return summary
+
+    except Exception as e:
+        logger.error(f"Daily summary build error: {e}")
+        return ""
+
+
 # ==================== ACTIVITY TRACKING ====================
 
 def record_user_activity(user_id: int, username: str = None, activity: str = "visit"):
@@ -716,6 +1057,7 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
             InlineKeyboardButton(get_text('btn_my_alarms', lang), callback_data="my_alarms"),
             InlineKeyboardButton(get_text('btn_whale_alerts', lang), callback_data="my_whale_alerts"),
         ],
+        [InlineKeyboardButton("🔍 Smart Money Tracker", callback_data="wallet_tracker_menu")],
         [InlineKeyboardButton(get_text('btn_sniper_alerts', lang), callback_data="sniper_menu")],
         [InlineKeyboardButton(get_text('btn_premium', lang), callback_data="premium")],
         [InlineKeyboardButton("💬 Feedback", callback_data="feedback_start")],
@@ -1682,21 +2024,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Professional price charts inside Telegram.\n\n"
             "🆓 Free Tier System ✅\n"
             f"{FREE_ANALYSIS_LIMIT} free analyses + {FREE_ALARM_LIMIT} free alarms for new users.\n\n"
-            "💬 Feedback System ✅\n"
+            "\U0001f4ac Feedback System \u2705\n"
             "Send feedback directly to the team.\n\n"
-            "━━━━━━━━━━━━━━━\n\n"
-            "🔜 COMING SOON\n\n"
-            "👥 Referral System\n"
+            "\U0001f50d Smart Money Wallet Tracker \u2705\n"
+            "Track profitable wallets and get instant trade alerts.\n\n"
+            "\U0001f4ca Daily Market Summary \u2705\n"
+            "Automated daily market overview for premium users.\n\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            "\U0001f51c COMING SOON\n\n"
+            "\U0001f465 Referral System\n"
             "Invite friends and earn free premium days.\n\n"
-            "🛡 Watchlist & Daily Reports\n"
-            "Save favorite tokens and get automated daily summaries.\n\n"
-            "🤖 AI Trading Signals\n"
+            "\U0001f916 AI Trading Signals\n"
             "Machine learning-based buy/sell signals.\n\n"
-            "📱 Mini App Dashboard\n"
+            "\U0001f4f1 Mini App Dashboard\n"
             "Full-featured Telegram Mini App with interactive charts.\n\n"
-            "🔗 Wallet Connect\n"
-            "Connect your Solana wallet for personalized analytics.\n\n"
-            "🏆 Leaderboard & Community\n"
+            "\U0001f517 Pump.fun Graduation Radar\n"
+            "Get alerted when tokens are about to graduate to Raydium.\n\n"
+            "\U0001f3c6 Leaderboard & Community\n"
             "Top traders ranking and community insights.\n\n"
             "Stay tuned for updates!\n\n"
             "🔗 x.com/kodarkweb3\n"
@@ -1762,6 +2106,105 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+    # ===== WALLET TRACKER CALLBACKS =====
+    elif query.data == "wallet_tracker_menu":
+        paywall = _check_premium_only(user_id, "Smart Money Wallet Tracker")
+        if paywall:
+            kb = [
+                [InlineKeyboardButton("\U0001f48e Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")],
+            ]
+            await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
+        wallets = get_tracked_wallets(user_id)
+        wallet_count = len(wallets)
+
+        text = (
+            f"\U0001f50d SMART MONEY TRACKER\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Track profitable wallets and get instant\n"
+            f"notifications when they make trades.\n\n"
+            f"\U0001f4cb Tracked Wallets: {wallet_count}/{MAX_TRACKED_WALLETS_PREMIUM}\n\n"
+        )
+
+        if wallets:
+            for i, w in enumerate(wallets, 1):
+                addr = w['address']
+                text += f"{i}. \U0001f3f7 {w['label']}\n   {addr[:6]}...{addr[-4:]}\n\n"
+
+        text += "\U0001f4a1 Tip: Track wallets of successful traders\nto follow their moves in real-time."
+
+        kb = []
+        if wallet_count < MAX_TRACKED_WALLETS_PREMIUM:
+            kb.append([InlineKeyboardButton("\u2795 Add Wallet", callback_data="wallet_add")])
+        if wallets:
+            kb.append([InlineKeyboardButton("\U0001f5d1 Remove All", callback_data="wallet_remove_all")])
+        kb.append([InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")])
+
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data == "wallet_add":
+        context.user_data["waiting_for_wallet_address"] = True
+        kb = [[InlineKeyboardButton("\u274c Cancel", callback_data="wallet_tracker_menu")]]
+        await query.edit_message_text(
+            "\U0001f50d ADD WALLET TO TRACK\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            "Send the Solana wallet address you want to track.\n\n"
+            "\U0001f4a1 Tips:\n"
+            "\u2022 Find profitable wallets on Solscan\n"
+            "\u2022 Copy addresses from DEX leaderboards\n"
+            "\u2022 Track known smart money wallets\n\n"
+            "\U0001f4e9 Paste the wallet address below:",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    elif query.data == "wallet_remove_all":
+        count = remove_all_tracked_wallets(user_id)
+        kb = [[InlineKeyboardButton("\U0001f50d Wallet Tracker", callback_data="wallet_tracker_menu")],
+              [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")]]
+        await query.edit_message_text(
+            f"\u2705 Removed {count} wallet(s) from tracking.\n\n"
+            f"You can add new wallets anytime.",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    elif query.data.startswith("wallet_remove_"):
+        addr = query.data.replace("wallet_remove_", "")
+        removed = remove_tracked_wallet(user_id, addr)
+        if removed:
+            await query.edit_message_text("\u2705 Wallet removed from tracking.")
+        else:
+            await query.edit_message_text("\u26a0\ufe0f Wallet not found.")
+        # Redirect to tracker menu
+        wallets = get_tracked_wallets(user_id)
+        wallet_count = len(wallets)
+        text = f"\U0001f50d SMART MONEY TRACKER\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n\U0001f4cb Tracked Wallets: {wallet_count}/{MAX_TRACKED_WALLETS_PREMIUM}\n\n"
+        if wallets:
+            for i, w in enumerate(wallets, 1):
+                a = w['address']
+                text += f"{i}. \U0001f3f7 {w['label']}\n   {a[:6]}...{a[-4:]}\n\n"
+        kb = []
+        if wallet_count < MAX_TRACKED_WALLETS_PREMIUM:
+            kb.append([InlineKeyboardButton("\u2795 Add Wallet", callback_data="wallet_add")])
+        if wallets:
+            kb.append([InlineKeyboardButton("\U0001f5d1 Remove All", callback_data="wallet_remove_all")])
+        kb.append([InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")])
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    # ===== DAILY SUMMARY TOGGLE =====
+    elif query.data == "toggle_daily_summary":
+        new_state = toggle_daily_summary(user_id)
+        state_text = "\u2705 Enabled" if new_state else "\u274c Disabled"
+        kb = [[InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")]]
+        await query.edit_message_text(
+            f"\U0001f4ca Daily Market Summary: {state_text}\n\n"
+            f"{'You will receive daily market updates at 09:00 UTC.' if new_state else 'You will no longer receive daily summaries.'}\n\n"
+            f"You can change this anytime from the main menu.",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+
 # ==================== MESSAGE HANDLER ====================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1770,6 +2213,73 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     record_user_activity(user_id, username, "message")
     text = update.message.text.strip()
     lang = get_user_lang(user_id)
+
+    # ===== WAITING FOR WALLET ADDRESS =====
+    if context.user_data.get("waiting_for_wallet_address"):
+        context.user_data["waiting_for_wallet_address"] = False
+        wallet_address = text.strip()
+
+        # Validate Solana address (32-44 chars, base58)
+        if len(wallet_address) < 32 or len(wallet_address) > 50:
+            kb = [[InlineKeyboardButton("\U0001f50d Wallet Tracker", callback_data="wallet_tracker_menu")],
+                  [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")]]
+            await update.message.reply_text(
+                "\u26a0\ufe0f Invalid wallet address. Please enter a valid Solana address.",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+            return
+
+        # Check if already tracking
+        existing = get_tracked_wallets(user_id)
+        for w in existing:
+            if w["address"] == wallet_address:
+                kb = [[InlineKeyboardButton("\U0001f50d Wallet Tracker", callback_data="wallet_tracker_menu")]]
+                await update.message.reply_text(
+                    "\u26a0\ufe0f You are already tracking this wallet.",
+                    reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+                )
+                return
+
+        context.user_data["pending_wallet_address"] = wallet_address
+        context.user_data["waiting_for_wallet_label"] = True
+        kb = [[InlineKeyboardButton("\u274c Cancel", callback_data="wallet_tracker_menu")]]
+        await update.message.reply_text(
+            f"\u2705 Address received:\n{wallet_address[:8]}...{wallet_address[-6:]}\n\n"
+            f"\U0001f3f7 Now give this wallet a label (e.g. \"Smart Whale 1\", \"Top Trader\"):\n\n"
+            f"\U0001f4e9 Type a name below:",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+        return
+
+    # ===== WAITING FOR WALLET LABEL =====
+    if context.user_data.get("waiting_for_wallet_label"):
+        context.user_data["waiting_for_wallet_label"] = False
+        label = text.strip()[:30]  # Max 30 chars
+        wallet_address = context.user_data.get("pending_wallet_address", "")
+
+        if not wallet_address:
+            kb = [[InlineKeyboardButton("\U0001f50d Wallet Tracker", callback_data="wallet_tracker_menu")]]
+            await update.message.reply_text("\u26a0\ufe0f Something went wrong. Please try again.",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+
+        result = add_tracked_wallet(user_id, wallet_address, label)
+        if "error" in result:
+            kb = [[InlineKeyboardButton("\U0001f50d Wallet Tracker", callback_data="wallet_tracker_menu")]]
+            await update.message.reply_text(f"\u26a0\ufe0f {result['error']}",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+        else:
+            kb = [[InlineKeyboardButton("\U0001f50d View Tracked Wallets", callback_data="wallet_tracker_menu")],
+                  [InlineKeyboardButton("\U0001f3e0 Main Menu", callback_data="home")]]
+            await update.message.reply_text(
+                f"\u2705 Wallet Added Successfully!\n\n"
+                f"\U0001f3f7 Label: {label}\n"
+                f"\U0001f4cd Address: {wallet_address[:8]}...{wallet_address[-6:]}\n\n"
+                f"\U0001f514 You will receive notifications when this wallet makes trades.\n"
+                f"\u23f0 Checking every {WALLET_CHECK_INTERVAL // 60} minutes.",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+        return
 
     # ===== WAITING FOR FEEDBACK =====
     if context.user_data.get("waiting_for_feedback"):
@@ -2076,18 +2586,146 @@ async def background_sniper_check(app):
             logger.error(f"Background sniper check error: {e}")
 
 
+async def background_wallet_tracker(app):
+    """Background task: check tracked wallets for new transactions every 3 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(WALLET_CHECK_INTERVAL)
+
+            all_trackers = get_all_wallet_trackers()
+            if not all_trackers:
+                continue
+
+            for user_str, wallets in all_trackers.items():
+                user_id = int(user_str)
+                # Only check for premium users
+                premium = get_user_premium_status(user_id)
+                if not premium["is_premium"]:
+                    continue
+
+                for wallet in wallets:
+                    try:
+                        address = wallet["address"]
+                        last_sig = wallet.get("last_tx_signature")
+
+                        new_txs = await check_wallet_transactions(address, last_sig)
+                        if not new_txs:
+                            continue
+
+                        # Update last known signature
+                        update_wallet_last_tx(user_id, address, new_txs[0]["signature"])
+
+                        # Get details and notify
+                        for tx in new_txs[:2]:  # Max 2 notifications per check
+                            if tx.get("err"):
+                                continue
+                            details = await get_transaction_details(tx["signature"])
+
+                            # Build notification
+                            tx_type_emoji = {
+                                "buy_token": "\U0001f7e2 BUY",
+                                "sell_token": "\U0001f534 SELL",
+                                "send_sol": "\u27a1\ufe0f SEND",
+                                "receive_sol": "\u2b05\ufe0f RECEIVE",
+                                "unknown": "\U0001f504 TX",
+                            }
+
+                            type_text = tx_type_emoji.get(details.get("type", "unknown"), "\U0001f504 TX")
+                            label = wallet.get("label", "Tracked Wallet")
+
+                            alert_text = (
+                                f"\U0001f4e1 SMART MONEY ALERT\n"
+                                f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+                                f"\U0001f3f7 Wallet: {label}\n"
+                                f"\U0001f4cd Address: {address[:6]}...{address[-4:]}\n\n"
+                                f"\u26a1 Action: {type_text}\n"
+                                f"\U0001f4cb Details: {details.get('details', 'N/A')}\n"
+                                f"\U0001f4b0 Fee: {details.get('fee', 0):.6f} SOL\n\n"
+                                f"\U0001f517 https://solscan.io/tx/{tx['signature']}\n\n"
+                                f"\u2014 kodark.io Smart Money Tracker"
+                            )
+
+                            try:
+                                await app.bot.send_message(
+                                    chat_id=user_id,
+                                    text=alert_text,
+                                    disable_web_page_preview=True
+                                )
+                            except Exception as e:
+                                logger.error(f"Wallet alert send error for {user_id}: {e}")
+
+                        await asyncio.sleep(1)
+                    except Exception as e:
+                        logger.error(f"Wallet tracker error for {wallet.get('address', '?')}: {e}")
+
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logger.error(f"Background wallet tracker error: {e}")
+
+
+async def background_daily_summary(app):
+    """Background task: send daily market summary to premium users at DAILY_SUMMARY_HOUR UTC."""
+    last_sent_date = None
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+
+            if not DAILY_SUMMARY_ENABLED:
+                continue
+
+            now = datetime.now()
+            current_hour = now.hour
+            current_date = now.strftime("%Y-%m-%d")
+
+            # Send at the configured hour, once per day
+            if current_hour == DAILY_SUMMARY_HOUR and current_date != last_sent_date:
+                last_sent_date = current_date
+                logger.info("Sending daily market summary...")
+
+                summary_text = await build_daily_summary_text()
+                if not summary_text:
+                    continue
+
+                subscribers = get_daily_summary_subscribers()
+                sent = 0
+                for uid in subscribers:
+                    try:
+                        kb = InlineKeyboardMarkup([
+                            [InlineKeyboardButton("\U0001f3b2 Analyze Token", callback_data="start_analyzing")],
+                            [InlineKeyboardButton("\U0001f515 Disable Summary", callback_data="toggle_daily_summary")],
+                        ])
+                        await app.bot.send_message(
+                            chat_id=uid,
+                            text=summary_text,
+                            reply_markup=kb,
+                            disable_web_page_preview=True
+                        )
+                        sent += 1
+                        await asyncio.sleep(0.5)
+                    except Exception as e:
+                        logger.error(f"Daily summary send error for {uid}: {e}")
+
+                logger.info(f"Daily summary sent to {sent}/{len(subscribers)} subscribers.")
+
+        except Exception as e:
+            logger.error(f"Background daily summary error: {e}")
+
+
 async def post_init(app):
     """Start background tasks after bot initialization."""
     asyncio.create_task(background_price_check(app))
     asyncio.create_task(background_whale_check(app))
     asyncio.create_task(background_sniper_check(app))
-    logger.info("Background monitoring tasks started (price, whale, sniper).")
+    asyncio.create_task(background_wallet_tracker(app))
+    asyncio.create_task(background_daily_summary(app))
+    logger.info("Background monitoring tasks started (price, whale, sniper, wallet tracker, daily summary).")
 
 
 # ==================== MAIN ====================
 
 def main():
-    logger.info("kodark.io Bot v4.0 starting...")
+    logger.info("kodark.io Bot v5.0 starting...")
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
@@ -2110,7 +2748,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot v4.0 started successfully! Polling...")
+    logger.info("Bot v5.0 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
