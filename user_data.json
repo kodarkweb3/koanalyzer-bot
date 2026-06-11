@@ -40,8 +40,25 @@
     },
     "daily_users": {
       "2026-06-11": [
-        "2043981845"
+        "2043981845",
+        "6646602626"
       ]
     }
+  },
+  "6646602626": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-11T13:36:33.283642",
+    "last_active": "2026-06-11T13:36:33.283631",
+    "username": "javiQgomining",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-11T13:36:33.283631"
+      }
+    ]
   }
 }
