@@ -46,8 +46,8 @@
     }
   },
   "6646602626": {
-    "premium": false,
-    "premium_until": null,
+    "premium": true,
+    "premium_until": "2026-07-11T15:55:04.682074",
     "analysis_count": 0,
     "alarm_count": 0,
     "paid_premium": false,
