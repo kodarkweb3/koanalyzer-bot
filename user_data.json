@@ -1,0 +1,28 @@
+{
+  "2043981845": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-11T08:40:45.037469",
+    "last_active": "2026-06-11T08:40:45.037451",
+    "username": "yms56",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-11T08:40:45.037451"
+      }
+    ]
+  },
+  "__stats__": {
+    "total_analyses": 0,
+    "total_payments": 0,
+    "daily_analyses": {},
+    "daily_users": {
+      "2026-06-11": [
+        "2043981845"
+      ]
+    }
+  }
+}
