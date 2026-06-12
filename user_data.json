@@ -46,7 +46,8 @@
         "1072957699"
       ],
       "2026-06-12": [
-        "5831648136"
+        "5831648136",
+        "487592888"
       ]
     }
   },
@@ -139,6 +140,22 @@
       {
         "type": "message",
         "time": "2026-06-12T07:18:06.217216"
+      }
+    ]
+  },
+  "487592888": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-12T13:48:53.300523",
+    "last_active": "2026-06-12T13:48:53.300516",
+    "username": "abdobiny",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-12T13:48:53.300516"
       }
     ]
   }
