@@ -44,6 +44,9 @@
         "6646602626",
         "1921080471",
         "1072957699"
+      ],
+      "2026-06-12": [
+        "5831648136"
       ]
     }
   },
@@ -112,6 +115,22 @@
       {
         "type": "visit",
         "time": "2026-06-11T22:47:23.286855"
+      }
+    ]
+  },
+  "5831648136": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-12T07:17:59.921470",
+    "last_active": "2026-06-12T07:17:59.921462",
+    "username": "SomplakFriend",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-12T07:17:59.921462"
       }
     ]
   }
