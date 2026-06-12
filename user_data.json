@@ -125,7 +125,7 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-12T07:17:59.921470",
-    "last_active": "2026-06-12T07:18:05.420661",
+    "last_active": "2026-06-12T07:18:06.217216",
     "username": "SomplakFriend",
     "activity_log": [
       {
@@ -135,6 +135,10 @@
       {
         "type": "message",
         "time": "2026-06-12T07:18:05.420661"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-12T07:18:06.217216"
       }
     ]
   }
