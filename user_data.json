@@ -125,12 +125,16 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-12T07:17:59.921470",
-    "last_active": "2026-06-12T07:17:59.921462",
+    "last_active": "2026-06-12T07:18:05.420661",
     "username": "SomplakFriend",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-12T07:17:59.921462"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-12T07:18:05.420661"
       }
     ]
   }
