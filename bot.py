@@ -1054,15 +1054,15 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
         f"Solana memecoin intelligence tool.\n"
         f"Analyze tokens, detect risks, and track smart money \u2014 all within Telegram.\n\n"
         f"What you can do with \U0001D5F8\U0001D5FC\U0001D5F1\U0001D5EE\U0001D5FF\U0001D5F8.\U0001D5F6\U0001D5FC? \U0001f0cf\n\n"
-        f"Token Analysis: Full risk scoring, holder distribution, and liquidity checks\n"
-        f"Smart Money: Track profitable wallets and see their trades in real-time\n"
-        f"Trending: Top performing Solana tokens ranked by volume\n"
-        f"Charts: Professional price and volume charts inside Telegram\n"
-        f"Market Signals: Fear & Greed Index, BTC dominance, SOL price\n\n"
+        f"Token Analysis \U0001f50d: Full risk scoring, holder distribution, and liquidity checks\n\n"
+        f"Smart Money \U0001f4b0: Track profitable wallets and see their trades in real-time\n\n"
+        f"Trending \U0001f4c8: Top performing Solana tokens ranked by volume\n\n"
+        f"Charts \U0001f4ca: Professional price and volume charts inside Telegram\n\n"
+        f"Market Signals \U0001f4e1: Fear & Greed Index, BTC dominance, SOL price\n\n"
         f"Alarms? \U0001f0cf\n\n"
-        f"Price Alarms: Set targets and get notified when price hits your level\n"
-        f"Whale Alerts: Detect large wallet movements on any token\n"
-        f"Sniper Alerts: New token launch notifications from Pump.fun, Raydium, Jupiter\n\n"
+        f"Price Alarms \u23f0: Set targets and get notified when price hits your level\n\n"
+        f"Whale Alerts \U0001f40b: Detect large wallet movements on any token\n\n"
+        f"Sniper Alerts \U0001f3af: New token launch notifications from Pump .fun, Raydium, Jupiter\n\n"
         f"{status_line}\n\n"
         f"x.com/kodarkweb3\n"
         f"x.com/kodarkio"
@@ -1081,7 +1081,7 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
         [InlineKeyboardButton("Premium Status \u2705", callback_data="premium")],
         [InlineKeyboardButton("\U0001f310 Language", callback_data="language_menu")],
         [InlineKeyboardButton("\U0001f5fa Roadmap", callback_data="roadmap")],
-        [InlineKeyboardButton("Feedback", callback_data="feedback_start")],
+        [InlineKeyboardButton("\U0001f4ac Feedback", callback_data="feedback_start")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -1698,9 +1698,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             f"{get_text('btn_start_analyzing', lang)}\n\n"
-            f"{get_text('type_address', lang)}\n"
-            f"{usage_hint}\n"
-            f"Example:\nSo11111111111111111111111111111111111111112",
+            f"Paste a Solana token contract address.\n"
+            f"{usage_hint}",
             disable_web_page_preview=True,
         )
         context.user_data["waiting_for_token"] = True
