@@ -57,7 +57,7 @@
   "6646602626": {
     "premium": true,
     "premium_until": "2026-07-11T15:55:04.682074",
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T13:36:33.283642",
@@ -84,7 +84,8 @@
         "days": 30,
         "date": "2026-06-11T15:55:05.725272"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-13T10:37:07.736941"
   },
   "1921080471": {
     "premium": false,
