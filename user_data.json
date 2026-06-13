@@ -52,7 +52,8 @@
       ],
       "2026-06-13": [
         "6646602626",
-        "2043981845"
+        "2043981845",
+        "7050235323"
       ]
     }
   },
@@ -170,6 +171,23 @@
       {
         "type": "visit",
         "time": "2026-06-12T13:48:53.300516"
+      }
+    ]
+  },
+  "7050235323": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-13T19:06:59.036080",
+    "watchlist": [],
+    "last_active": "2026-06-13T19:06:59.036074",
+    "username": "BatureCrypto",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-13T19:06:59.036074"
       }
     ]
   }
