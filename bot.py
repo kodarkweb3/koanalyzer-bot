@@ -1,8 +1,9 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v5.1
+kodark.io - Solana Memecoins Analyzer Bot v5.2
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
-Smart Money Wallet Tracker | Daily Market Summary
+Smart Money Wallet Tracker | Daily Market Summary | Trending Top 10
+Token Watchlist | Alerts Hub | Dark Theme UI
 Free Tier (3 analyses + 3 alarms) | Feedback System
 Telegram Stars Payment System
 """
@@ -309,6 +310,7 @@ def _new_user_record() -> dict:
         "alarm_count": 0,
         "paid_premium": False,
         "joined": datetime.now().isoformat(),
+        "watchlist": [],  # Token watchlist [{"address": ..., "symbol": ..., "name": ..., "added": ...}]
     }
 
 
@@ -1036,39 +1038,31 @@ def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
 def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
-            status_line = f"{get_text('premium_active', lang)}: {get_text('lifetime', lang)}"
+            status_line = f"{get_text('premium_active', lang)}: {get_text('lifetime', lang)} \u2665\ufe0f"
         else:
-            status_line = f"{get_text('premium_active', lang)} ({premium['remaining']} left)\n📅 Expires: {premium['until']}"
+            status_line = f"{get_text('premium_active', lang)} ({premium['remaining']} left) \u2665\ufe0f"
     else:
-        # Show free tier usage
         usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
         status_line = (
             f"{get_text('premium_inactive', lang)}\n"
-            f"🆓 Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms remaining"
+            f"Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms"
         )
-
-    payment_line = "" if premium["is_premium"] else f"\n💎 Premium: ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n"
 
     text = (
         f"{get_text('start_title', lang)}\n"
-        f"\n"
-        f"{get_text('start_subtitle', lang)}\n"
-        f"\n"
-        f"{get_text('features_header', lang)}\n"
+        f"━━━━━━━━━━━━━━━\n\n"
+        f"{get_text('start_subtitle', lang)}\n\n"
+        f"{get_text('features_header', lang)}\n\n"
         f"{get_text('feature_whale', lang)}\n"
         f"{get_text('feature_risk', lang)}\n"
         f"{get_text('feature_holder', lang)}\n"
         f"{get_text('feature_alarm', lang)}\n"
         f"{get_text('feature_sniper', lang)}\n"
         f"{get_text('feature_chart', lang)}\n"
-        f"{get_text('feature_signals', lang)}\n"
-        f"\n"
-        f"{status_line}"
-        f"{payment_line}"
-        f"\n"
-        f"🔗 x.com/kodarkweb3\n"
-        f"🔗 x.com/kodarkio\n"
-        f"\n"
+        f"{get_text('feature_signals', lang)}\n\n"
+        f"{status_line}\n\n"
+        f"x.com/kodarkweb3\n"
+        f"x.com/kodarkio\n\n"
         f"{get_text('select_option', lang)}"
     )
     return text
@@ -1076,18 +1070,18 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
 
 def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
-        [InlineKeyboardButton(get_text('btn_start_analyzing', lang), callback_data="start_analyzing")],
-        [InlineKeyboardButton(get_text('btn_market_signals', lang), callback_data="signals")],
-        [
-            InlineKeyboardButton(get_text('btn_my_alarms', lang), callback_data="my_alarms"),
-            InlineKeyboardButton(get_text('btn_whale_alerts', lang), callback_data="my_whale_alerts"),
-        ],
+        [InlineKeyboardButton("♠️ START ANALYZING", callback_data="start_analyzing")],
+        [InlineKeyboardButton("♦️ Trending Top 10", callback_data="trending_tokens")],
+        [InlineKeyboardButton("♣️ Alerts Hub", callback_data="alerts_hub")],
+        [InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")],
         [InlineKeyboardButton("🔍 Smart Money Tracker", callback_data="wallet_tracker_menu")],
-        [InlineKeyboardButton(get_text('btn_sniper_alerts', lang), callback_data="sniper_menu")],
+        [InlineKeyboardButton(get_text('btn_market_signals', lang), callback_data="signals")],
         [InlineKeyboardButton(get_text('btn_premium', lang), callback_data="premium")],
+        [
+            InlineKeyboardButton(get_text('btn_language', lang), callback_data="language_menu"),
+            InlineKeyboardButton(get_text('btn_roadmap', lang), callback_data="roadmap"),
+        ],
         [InlineKeyboardButton("💬 Feedback", callback_data="feedback_start")],
-        [InlineKeyboardButton(get_text('btn_language', lang), callback_data="language_menu")],
-        [InlineKeyboardButton(get_text('btn_roadmap', lang), callback_data="roadmap")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -1328,6 +1322,113 @@ async def _send_signals(msg, user_id: int):
     except Exception as e:
         logger.error(f"Signals error: {e}")
         await msg.edit_text(f"❌ Error fetching market data: {str(e)[:200]}")
+
+
+# ==================== TRENDING TOKENS ====================
+
+async def _fetch_trending_tokens() -> list:
+    """Fetch top 10 trending Solana tokens from DexScreener."""
+    import aiohttp
+    try:
+        url = "https://api.dexscreener.com/latest/dex/tokens/solana"
+        # Use search endpoint for boosted/trending tokens
+        url = "https://api.dexscreener.com/token-boosts/top/v1"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status != 200:
+                    # Fallback: use pairs sorted by volume
+                    fallback_url = "https://api.dexscreener.com/latest/dex/pairs/solana"
+                    async with session.get(fallback_url, timeout=aiohttp.ClientTimeout(total=15)) as fb_resp:
+                        if fb_resp.status != 200:
+                            return []
+                        fb_data = await fb_resp.json()
+                        pairs = fb_data.get("pairs", [])
+                        pairs.sort(key=lambda x: x.get("volume", {}).get("h24", 0), reverse=True)
+                        result = []
+                        for p in pairs[:10]:
+                            result.append({
+                                "symbol": p.get("baseToken", {}).get("symbol", "???"),
+                                "name": p.get("baseToken", {}).get("name", "Unknown"),
+                                "price": float(p.get("priceUsd", 0) or 0),
+                                "change_24h": float(p.get("priceChange", {}).get("h24", 0) or 0),
+                                "volume_24h": float(p.get("volume", {}).get("h24", 0) or 0),
+                                "address": p.get("baseToken", {}).get("address", ""),
+                            })
+                        return result
+                
+                data = await resp.json()
+                # token-boosts returns a list of boosted tokens
+                result = []
+                seen = set()
+                for item in data:
+                    chain = item.get("chainId", "")
+                    if chain != "solana":
+                        continue
+                    addr = item.get("tokenAddress", "")
+                    if addr in seen:
+                        continue
+                    seen.add(addr)
+                    # Fetch pair data for this token
+                    result.append({
+                        "symbol": item.get("symbol", item.get("tokenAddress", "???")[:6]),
+                        "name": item.get("name", "Unknown"),
+                        "price": 0,
+                        "change_24h": 0,
+                        "volume_24h": 0,
+                        "address": addr,
+                    })
+                    if len(result) >= 10:
+                        break
+                
+                # If we got boosted tokens, fetch their prices
+                if result:
+                    addresses = ",".join([t["address"] for t in result[:10]])
+                    price_url = f"https://api.dexscreener.com/latest/dex/tokens/{addresses}"
+                    async with session.get(price_url, timeout=aiohttp.ClientTimeout(total=15)) as price_resp:
+                        if price_resp.status == 200:
+                            price_data = await price_resp.json()
+                            pairs = price_data.get("pairs", [])
+                            # Map address to best pair
+                            addr_map = {}
+                            for p in pairs:
+                                base_addr = p.get("baseToken", {}).get("address", "")
+                                if base_addr not in addr_map:
+                                    addr_map[base_addr] = p
+                                elif float(p.get("volume", {}).get("h24", 0) or 0) > float(addr_map[base_addr].get("volume", {}).get("h24", 0) or 0):
+                                    addr_map[base_addr] = p
+                            
+                            for t in result:
+                                if t["address"] in addr_map:
+                                    p = addr_map[t["address"]]
+                                    t["symbol"] = p.get("baseToken", {}).get("symbol", t["symbol"])
+                                    t["name"] = p.get("baseToken", {}).get("name", t["name"])
+                                    t["price"] = float(p.get("priceUsd", 0) or 0)
+                                    t["change_24h"] = float(p.get("priceChange", {}).get("h24", 0) or 0)
+                                    t["volume_24h"] = float(p.get("volume", {}).get("h24", 0) or 0)
+                
+                # If no solana tokens from boosts, fallback
+                if not result:
+                    fallback_url = "https://api.dexscreener.com/latest/dex/pairs/solana"
+                    async with session.get(fallback_url, timeout=aiohttp.ClientTimeout(total=15)) as fb_resp:
+                        if fb_resp.status != 200:
+                            return []
+                        fb_data = await fb_resp.json()
+                        pairs = fb_data.get("pairs", [])
+                        pairs.sort(key=lambda x: x.get("volume", {}).get("h24", 0), reverse=True)
+                        for p in pairs[:10]:
+                            result.append({
+                                "symbol": p.get("baseToken", {}).get("symbol", "???"),
+                                "name": p.get("baseToken", {}).get("name", "Unknown"),
+                                "price": float(p.get("priceUsd", 0) or 0),
+                                "change_24h": float(p.get("priceChange", {}).get("h24", 0) or 0),
+                                "volume_24h": float(p.get("volume", {}).get("h24", 0) or 0),
+                                "address": p.get("baseToken", {}).get("address", ""),
+                            })
+                
+                return result
+    except Exception as e:
+        logger.error(f"Trending fetch error: {e}")
+        return []
 
 
 # ==================== ADMIN PANEL ====================
@@ -1656,6 +1757,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton(get_text('btn_chart', lang), callback_data="action_chart")],
                 [InlineKeyboardButton("⏰ Set Alarm", callback_data="action_alarm")],
                 [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
+                [InlineKeyboardButton("♥️ Add to Watchlist", callback_data="watchlist_add")],
                 [InlineKeyboardButton("🃏 New Analysis", callback_data="start_analyzing")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
@@ -1848,6 +1950,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(get_text('btn_chart', lang), callback_data="action_chart")],
             [InlineKeyboardButton("⏰ Set Price Alarm", callback_data="action_alarm")],
             [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
+            [InlineKeyboardButton("♥️ Add to Watchlist", callback_data="watchlist_add")],
             [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
         ]
         await query.edit_message_text(
@@ -2029,6 +2132,191 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Your message will be sent to the kodark.io team.\n\n"
             "Type your message:",
             disable_web_page_preview=True,
+        )
+
+    # ===== TRENDING TOP 10 =====
+    elif query.data == "trending_tokens":
+        await query.edit_message_text("⏳ Loading trending tokens...", disable_web_page_preview=True)
+        try:
+            trending_data = await _fetch_trending_tokens()
+            if not trending_data:
+                kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+                await query.edit_message_text("⚠️ Could not fetch trending data. Try again later.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+                return
+            
+            text = "♦️ TRENDING TOP 10 — Solana\n━━━━━━━━━━━━━━━\n\n"
+            for i, token in enumerate(trending_data[:10], 1):
+                symbol = token.get("symbol", "???")
+                name = token.get("name", "Unknown")[:20]
+                price = token.get("price", 0)
+                change_24h = token.get("change_24h", 0)
+                volume = token.get("volume_24h", 0)
+                
+                arrow = "▲" if change_24h >= 0 else "▼"
+                change_str = f"{arrow} {abs(change_24h):.1f}%"
+                
+                if volume >= 1_000_000:
+                    vol_str = f"${volume/1_000_000:.1f}M"
+                elif volume >= 1_000:
+                    vol_str = f"${volume/1_000:.0f}K"
+                else:
+                    vol_str = f"${volume:.0f}"
+                
+                if price >= 0.01:
+                    price_str = f"${price:.4f}"
+                else:
+                    price_str = f"${price:.8f}"
+                
+                text += f"{i}. {symbol} — {name}\n"
+                text += f"   {price_str} | {change_str} | Vol: {vol_str}\n\n"
+            
+            text += "Data from DexScreener \u2660️"
+            
+            kb = [
+                [InlineKeyboardButton("🔄 Refresh", callback_data="trending_tokens")],
+                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+            ]
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+        except Exception as e:
+            logger.error(f"Trending error: {e}")
+            kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+            await query.edit_message_text("⚠️ Error loading trending data.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    # ===== WATCHLIST =====
+    elif query.data == "watchlist_menu":
+        data = load_user_data()
+        user_str = str(user_id)
+        watchlist = data.get(user_str, {}).get("watchlist", [])
+        
+        if not watchlist:
+            kb = [
+                [InlineKeyboardButton("♠️ START ANALYZING", callback_data="start_analyzing")],
+                [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+            ]
+            await query.edit_message_text(
+                "♥️ MY WATCHLIST\n"
+                "━━━━━━━━━━━━━━━\n\n"
+                "Your watchlist is empty.\n\n"
+                "Analyze a token first, then add it to your watchlist from the token actions menu.\n\n"
+                "Start analyzing to build your list \u2666️",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+        else:
+            text = "♥️ MY WATCHLIST\n━━━━━━━━━━━━━━━\n\n"
+            for i, token in enumerate(watchlist, 1):
+                text += f"{i}. ${token['symbol']} — {token['name']}\n"
+                text += f"   {token['address'][:8]}...{token['address'][-6:]}\n\n"
+            text += f"Total: {len(watchlist)} token(s) \u2663️"
+            kb = []
+            for token in watchlist:
+                kb.append([InlineKeyboardButton(f"🔍 ${token['symbol']}", callback_data=f"wl_analyze_{token['address']}")])
+            kb.append([InlineKeyboardButton("🗑 Clear Watchlist", callback_data="watchlist_clear")])
+            kb.append([InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")])
+            await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data == "watchlist_clear":
+        data = load_user_data()
+        user_str = str(user_id)
+        if user_str in data:
+            data[user_str]["watchlist"] = []
+            save_user_data(data)
+        kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+        await query.edit_message_text("🗑 Watchlist cleared.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data.startswith("wl_analyze_"):
+        token_address = query.data.replace("wl_analyze_", "")
+        context.user_data["current_token_address"] = token_address
+        context.user_data["waiting_for_address"] = False
+        await query.edit_message_text("⏳ Fetching token data...", disable_web_page_preview=True)
+        # Trigger analysis
+        token_data = await get_token_info(token_address)
+        if not token_data or "error" in token_data:
+            kb = [[InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")], [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+            await query.edit_message_text(f"⚠️ Could not fetch token data. Try again later.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+        token_name = token_data.get("name", "Unknown")
+        token_symbol = token_data.get("symbol", "???")
+        token_price = token_data.get("price_usd", "N/A")
+        context.user_data["current_token_data"] = token_data
+        kb = [
+            [InlineKeyboardButton("📊 Full Analysis", callback_data="action_analyze")],
+            [InlineKeyboardButton("📈 Price Chart", callback_data="action_chart")],
+            [InlineKeyboardButton("⏰ Set Price Alarm", callback_data="action_alarm")],
+            [InlineKeyboardButton("🐋 Whale Alert", callback_data="action_whale")],
+            [InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")],
+            [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+        ]
+        await query.edit_message_text(
+            f"🃏 TOKEN: ${token_symbol} ({token_name})\n"
+            f"💰 Price: ${token_price}\n\n"
+            f"Select an action \u2660️",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    elif query.data == "watchlist_add":
+        token_address = context.user_data.get("current_token_address")
+        token_data = context.user_data.get("current_token_data", {})
+        if not token_address:
+            kb = [[InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+            await query.edit_message_text("⚠️ No token selected.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+        
+        data = load_user_data()
+        user_str = str(user_id)
+        if user_str not in data:
+            data[user_str] = _new_user_record()
+        
+        watchlist = data[user_str].get("watchlist", [])
+        
+        # Check if already in watchlist
+        if any(t["address"] == token_address for t in watchlist):
+            kb = [[InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")], [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+            await query.edit_message_text("⚠️ Token already in your watchlist.", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+        
+        # Max 10 tokens in watchlist
+        if len(watchlist) >= 10:
+            kb = [[InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")], [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")]]
+            await query.edit_message_text("⚠️ Watchlist full (max 10 tokens).", reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+            return
+        
+        watchlist.append({
+            "address": token_address,
+            "symbol": token_data.get("symbol", "???"),
+            "name": token_data.get("name", "Unknown"),
+            "added": datetime.now().isoformat(),
+        })
+        data[user_str]["watchlist"] = watchlist
+        save_user_data(data)
+        
+        kb = [
+            [InlineKeyboardButton("♥️ My Watchlist", callback_data="watchlist_menu")],
+            [InlineKeyboardButton("🃏 New Analysis", callback_data="start_analyzing")],
+            [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+        ]
+        await query.edit_message_text(
+            f"✅ Added ${token_data.get('symbol', '???')} to your watchlist \u2665️\n\n"
+            f"You now have {len(watchlist)} token(s) in your watchlist.",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+        )
+
+    # ===== ALERTS HUB =====
+    elif query.data == "alerts_hub":
+        kb = [
+            [InlineKeyboardButton("⏰ My Price Alarms", callback_data="my_alarms")],
+            [InlineKeyboardButton("🐋 My Whale Alerts", callback_data="my_whale_alerts")],
+            [InlineKeyboardButton("🎯 Sniper Alerts", callback_data="sniper_menu")],
+            [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
+        ]
+        await query.edit_message_text(
+            "♣️ ALERTS HUB\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "Manage all your alerts in one place.\n\n"
+            "Price Alarms — Get notified on price targets ⏰\n"
+            "Whale Alerts — Track large wallet movements 🐋\n"
+            "Sniper Alerts — New token launch notifications 🎯\n\n"
+            "Select an alert type below \u2660\ufe0f",
+            reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
 
     # ===== ROADMAP =====
@@ -2873,7 +3161,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot v5.1 started successfully! Polling...")
+    logger.info("Bot v5.2 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
