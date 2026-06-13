@@ -33,10 +33,11 @@
     "last_analysis": "2026-06-11T08:42:19.571623"
   },
   "__stats__": {
-    "total_analyses": 1,
+    "total_analyses": 2,
     "total_payments": 0,
     "daily_analyses": {
-      "2026-06-11": 1
+      "2026-06-11": 1,
+      "2026-06-13": 1
     },
     "daily_users": {
       "2026-06-11": [
@@ -61,7 +62,7 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T13:36:33.283642",
-    "last_active": "2026-06-13T10:36:47.010552",
+    "last_active": "2026-06-13T10:37:08.429391",
     "username": "javiQgomining",
     "activity_log": [
       {
@@ -75,6 +76,10 @@
       {
         "type": "message",
         "time": "2026-06-13T10:36:47.010552"
+      },
+      {
+        "type": "analysis",
+        "time": "2026-06-13T10:37:08.429391"
       }
     ],
     "lang": "es",
