@@ -1049,20 +1049,20 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
         )
 
     text = (
-        f"Welcome to kodark.io \U0001f0cf\n"
+        f"Welcome to \U0001D5F8\U0001D5FC\U0001D5F1\U0001D5EE\U0001D5FF\U0001D5F8.\U0001D5F6\U0001D5FC \U0001f0cf\n"
         f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
         f"Solana memecoin intelligence tool.\n"
         f"Analyze tokens, detect risks, and track smart money \u2014 all within Telegram.\n\n"
-        f"What you can do with kodark.io? \U0001f0cf\n\n"
-        f"Token Analysis \u2014 Full risk scoring, holder distribution, and liquidity checks \u2660\ufe0f\n"
-        f"Smart Money \u2014 Track profitable wallets and see their trades in real-time \u2666\ufe0f\n"
-        f"Trending \u2014 Top performing Solana tokens ranked by volume \u2663\ufe0f\n"
-        f"Charts \u2014 Professional price and volume charts inside Telegram \u2665\ufe0f\n"
-        f"Market Signals \u2014 Fear & Greed Index, BTC dominance, SOL price \u2660\ufe0f\n\n"
+        f"What you can do with \U0001D5F8\U0001D5FC\U0001D5F1\U0001D5EE\U0001D5FF\U0001D5F8.\U0001D5F6\U0001D5FC? \U0001f0cf\n\n"
+        f"Token Analysis: Full risk scoring, holder distribution, and liquidity checks\n"
+        f"Smart Money: Track profitable wallets and see their trades in real-time\n"
+        f"Trending: Top performing Solana tokens ranked by volume\n"
+        f"Charts: Professional price and volume charts inside Telegram\n"
+        f"Market Signals: Fear & Greed Index, BTC dominance, SOL price\n\n"
         f"Alarms? \U0001f0cf\n\n"
-        f"Price Alarms \u2014 Set targets and get notified when price hits your level \u2666\ufe0f\n"
-        f"Whale Alerts \u2014 Detect large wallet movements on any token \u2663\ufe0f\n"
-        f"Sniper Alerts \u2014 New token launch notifications from Pump.fun, Raydium, Jupiter \u2665\ufe0f\n\n"
+        f"Price Alarms: Set targets and get notified when price hits your level\n"
+        f"Whale Alerts: Detect large wallet movements on any token\n"
+        f"Sniper Alerts: New token launch notifications from Pump.fun, Raydium, Jupiter\n\n"
         f"{status_line}\n\n"
         f"x.com/kodarkweb3\n"
         f"x.com/kodarkio"
@@ -1078,9 +1078,9 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
         [InlineKeyboardButton("Alerts Hub \u2663\ufe0f", callback_data="alerts_hub")],
         [InlineKeyboardButton("My Watchlist \u2665\ufe0f", callback_data="watchlist_menu")],
         [InlineKeyboardButton("Market Signals \u2666\ufe0f", callback_data="signals")],
-        [InlineKeyboardButton("\u2705 Premium Status", callback_data="premium")],
-        [InlineKeyboardButton("Language", callback_data="language_menu")],
-        [InlineKeyboardButton("Roadmap", callback_data="roadmap")],
+        [InlineKeyboardButton("Premium Status \u2705", callback_data="premium")],
+        [InlineKeyboardButton("\U0001f310 Language", callback_data="language_menu")],
+        [InlineKeyboardButton("\U0001f5fa Roadmap", callback_data="roadmap")],
         [InlineKeyboardButton("Feedback", callback_data="feedback_start")],
     ]
     return InlineKeyboardMarkup(keyboard)
