@@ -182,12 +182,16 @@
     "paid_premium": false,
     "joined": "2026-06-13T19:06:59.036080",
     "watchlist": [],
-    "last_active": "2026-06-13T19:06:59.036074",
+    "last_active": "2026-06-13T19:08:28.215852",
     "username": "BatureCrypto",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-13T19:06:59.036074"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-13T19:08:28.215852"
       }
     ]
   }
