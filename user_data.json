@@ -231,7 +231,7 @@
   "1076744907": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 2,
+    "analysis_count": 3,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-14T11:27:31.517765",
@@ -260,7 +260,7 @@
         "time": "2026-06-14T14:09:13.751084"
       }
     ],
-    "last_analysis": "2026-06-14T13:58:05.564899"
+    "last_analysis": "2026-06-14T14:09:24.262334"
   },
   "6953270267": {
     "premium": false,
