@@ -1,11 +1,11 @@
 {
   "2043981845": {
     "premium": {
-      "is_premium": false,
-      "expiry": null,
-      "plan": null
+      "is_premium": true,
+      "expiry": "Lifetime",
+      "plan": "Admin Lifetime"
     },
-    "premium_until": null,
+    "premium_until": "2099-12-31T23:59:59",
     "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
