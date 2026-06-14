@@ -236,13 +236,9 @@
     "paid_premium": false,
     "joined": "2026-06-14T11:27:31.517765",
     "watchlist": [],
-    "last_active": "2026-06-14T13:58:06.393888",
+    "last_active": "2026-06-14T14:09:12.932699",
     "username": "isabellaa_sterling",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-14T11:28:10.486175"
-      },
       {
         "type": "analysis",
         "time": "2026-06-14T11:28:27.752462"
@@ -258,6 +254,10 @@
       {
         "type": "analysis",
         "time": "2026-06-14T13:58:06.393888"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-14T14:09:12.932699"
       }
     ],
     "last_analysis": "2026-06-14T13:58:05.564899"
