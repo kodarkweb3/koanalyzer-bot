@@ -1,6 +1,10 @@
 {
   "2043981845": {
-    "premium": false,
+    "premium": {
+      "is_premium": false,
+      "expiry": null,
+      "plan": null
+    },
     "premium_until": null,
     "analysis_count": 1,
     "alarm_count": 0,
