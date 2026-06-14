@@ -262,7 +262,7 @@
     "paid_premium": false,
     "joined": "2026-06-14T11:41:16.953774",
     "watchlist": [],
-    "last_active": "2026-06-14T11:44:30.719767",
+    "last_active": "2026-06-14T11:44:56.352527",
     "username": "pablos220",
     "activity_log": [
       {
@@ -272,6 +272,10 @@
       {
         "type": "message",
         "time": "2026-06-14T11:44:30.719767"
+      },
+      {
+        "type": "visit",
+        "time": "2026-06-14T11:44:56.352527"
       }
     ]
   }
