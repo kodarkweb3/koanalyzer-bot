@@ -95,9 +95,9 @@ SOL_PAYMENT_CHECK_INTERVAL = 60  # seconds
 # Premium Plans (SOL prices in USD equivalent)
 PREMIUM_PLANS = {
     "1_month": {"days": 30, "price_usd": 18.49, "label": "1 Month", "stars": 1280},
-    "3_month": {"days": 90, "price_usd": 44.99, "label": "3 Months", "stars": 3100},
-    "6_month": {"days": 180, "price_usd": 86.99, "label": "6 Months", "stars": 6000},
-    "12_month": {"days": 365, "price_usd": 154.99, "label": "1 Year", "stars": 10700},
+    "3_month": {"days": 90, "price_usd": 44.99, "label": "3 Months", "stars": 3840},
+    "6_month": {"days": 180, "price_usd": 86.99, "label": "6 Months", "stars": 7680},
+    "12_month": {"days": 365, "price_usd": 154.99, "label": "1 Year", "stars": 15360},
 }
 
 # Campaign: Buy 1 Get 1 Free
@@ -1367,15 +1367,12 @@ async def send_premium_invoice(update_or_query, context: ContextTypes.DEFAULT_TY
         chat_id = update_or_query.effective_chat.id
 
     days_label = plan["days"]
-    campaign_note = ""
-    if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
-        campaign_note = "\n\n\U0001f0cf BONUS: +1 Month FREE (campaign active)"
 
     await context.bot.send_invoice(
         chat_id=chat_id,
         title=f"kodark.io Premium - {plan['label']}",
         description=f"Unlock {days_label}-day Premium Access\n"
-                    f"Unlimited analysis, whale alerts, sniper, charts{campaign_note}",
+                    f"Unlimited analysis, whale alerts, sniper, charts",
         payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
@@ -1400,10 +1397,7 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
         plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1_month"])
         days = plan["days"]
 
-        # Apply campaign bonus
-        if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
-            days = 60  # Double the days
-
+        # Stars payment - no campaign bonus (campaign only for SOL)
         until = activate_premium(user_id, days=days)
         data = load_user_data()
         user_str = str(user_id)
@@ -1415,8 +1409,6 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
         date_str = until.strftime('%d.%m.%Y %H:%M')
 
         bonus_text = ""
-        if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
-            bonus_text = "\n\U0001f0cf Campaign Bonus: +30 days FREE applied!"
 
         kb = [
             [InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
@@ -1636,7 +1628,7 @@ def _build_admin_keyboard(stats: dict = None) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("👥 Recent Users", callback_data="admin_users")],
         [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
         [InlineKeyboardButton("🎁 Premium Hediye Et", callback_data="admin_gift_premium")],
-        [InlineKeyboardButton(f"\U0001f0cf Campaign 1+1: {'ON' if CAMPAIGN_BUY1_GET1 else 'OFF'}", callback_data="admin_toggle_campaign")],
+        [InlineKeyboardButton("\U0001f0cf Campaign Management " + ("\U0001f7e2" if CAMPAIGN_BUY1_GET1 else "\U0001f534"), callback_data="admin_campaign")],
         [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
         [InlineKeyboardButton(fb_label, callback_data="admin_feedback")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
@@ -2324,17 +2316,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
             f"Select your plan:\n\n"
         )
-        campaign_note = ""
-        if CAMPAIGN_BUY1_GET1:
-            campaign_note = " (+1 Month FREE)"
         for key, plan in PREMIUM_PLANS.items():
-            bonus = campaign_note if key == "1_month" else ""
-            text += f"{plan['label']}: {plan['stars']} Stars{bonus}\n"
+            text += f"{plan['label']}: {plan['stars']} Stars (~${plan['stars'] * 0.017:.2f})\n"
         text += f"\nPay securely via Telegram.\nSelect a plan:"
         kb = []
         for key, plan in PREMIUM_PLANS.items():
-            bonus = " +1 FREE" if CAMPAIGN_BUY1_GET1 and key == "1_month" else ""
-            kb.append([InlineKeyboardButton(f"{plan['label']} - {plan['stars']} Stars{bonus}", callback_data=f"stars_pay_{key}")])
+            kb.append([InlineKeyboardButton(f"{plan['label']} - {plan['stars']} Stars", callback_data=f"stars_pay_{key}")])
         kb.append([InlineKeyboardButton("Back", callback_data="premium")])
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
@@ -2762,6 +2749,33 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.edit_message_text(_build_feedback_text(), reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
+    elif query.data == "admin_campaign":
+        if user_id != ADMIN_USER_ID:
+            return
+        status_icon = "\U0001f7e2" if CAMPAIGN_BUY1_GET1 else "\U0001f534"
+        status_text = "ACTIVE" if CAMPAIGN_BUY1_GET1 else "INACTIVE"
+        toggle_btn_text = "\u274c Deactivate Campaign" if CAMPAIGN_BUY1_GET1 else "\u2705 Activate Campaign"
+        text = (
+            f"\U0001f0cf CAMPAIGN MANAGEMENT\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Campaign: Buy 1 Month, Get 1 Month FREE\n\n"
+            f"Status: {status_icon} {status_text}\n\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"Details:\n"
+            f"  Applies to: SOL payments only\n"
+            f"  Plan: 1 Month (pay 30 days, get 60 days)\n"
+            f"  Stars payments: NOT affected\n\n"
+            f"When active, users who pay 1 month\n"
+            f"with SOL receive an extra 30 days free.\n"
+            f"This is shown on the /start screen\n"
+            f"and payment pages."
+        )
+        kb = [
+            [InlineKeyboardButton(toggle_btn_text, callback_data="admin_toggle_campaign")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
     elif query.data == "admin_toggle_campaign":
         if user_id != ADMIN_USER_ID:
             return
@@ -2772,9 +2786,30 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data["__campaign_buy1_get1"] = CAMPAIGN_BUY1_GET1
         save_user_data(data)
         await query.answer(f"Campaign 1+1 is now {status}", show_alert=True)
-        # Refresh admin panel
-        stats = get_admin_stats()
-        await query.edit_message_text(_build_admin_text(stats), reply_markup=_build_admin_keyboard(stats), disable_web_page_preview=True)
+        # Refresh campaign page
+        status_icon = "\U0001f7e2" if CAMPAIGN_BUY1_GET1 else "\U0001f534"
+        status_text = "ACTIVE" if CAMPAIGN_BUY1_GET1 else "INACTIVE"
+        toggle_btn_text = "\u274c Deactivate Campaign" if CAMPAIGN_BUY1_GET1 else "\u2705 Activate Campaign"
+        text = (
+            f"\U0001f0cf CAMPAIGN MANAGEMENT\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Campaign: Buy 1 Month, Get 1 Month FREE\n\n"
+            f"Status: {status_icon} {status_text}\n\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"Details:\n"
+            f"  Applies to: SOL payments only\n"
+            f"  Plan: 1 Month (pay 30 days, get 60 days)\n"
+            f"  Stars payments: NOT affected\n\n"
+            f"When active, users who pay 1 month\n"
+            f"with SOL receive an extra 30 days free.\n"
+            f"This is shown on the /start screen\n"
+            f"and payment pages."
+        )
+        kb = [
+            [InlineKeyboardButton(toggle_btn_text, callback_data="admin_toggle_campaign")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
     elif query.data == "admin_gift_premium":
         if user_id != ADMIN_USER_ID:
