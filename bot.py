@@ -350,19 +350,26 @@ def get_user_premium_status(user_id: int) -> dict:
 
     user = data[user_str]
 
-    # Check admin premium from data (togglable)
+    # Check admin premium from data (togglable via admin panel)
     if user_id == ADMIN_USER_ID:
         admin_prem = user.get("premium", {})
-        if isinstance(admin_prem, dict) and admin_prem.get("is_premium", False):
-            exp = admin_prem.get("expiry", "Lifetime")
-            return {"is_premium": True, "remaining": "Unlimited", "until": exp}
-        elif isinstance(admin_prem, bool) and admin_prem:
+        # If premium is stored as dict with is_premium key
+        if isinstance(admin_prem, dict):
+            if admin_prem.get("is_premium", False):
+                exp = admin_prem.get("expiry", "Lifetime")
+                return {"is_premium": True, "remaining": "Unlimited", "until": exp}
+            else:
+                return {"is_premium": False, "remaining": None, "until": None}
+        # Legacy format: premium is bool or missing - convert to dict format
+        # Set to active by default for first time, admin can toggle off later
+        if admin_prem is True or admin_prem is None or admin_prem == {}:
+            data[user_str]["premium"] = {"is_premium": True, "expiry": "Lifetime", "plan": "Admin Lifetime"}
+            save_user_data(data)
             return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
-        # If admin premium is off in data, return inactive
-        if isinstance(admin_prem, dict) and not admin_prem.get("is_premium", True):
-            return {"is_premium": False, "remaining": None, "until": None}
-        # Default: admin is premium if no explicit toggle off
-        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
+        # Explicitly set to False
+        data[user_str]["premium"] = {"is_premium": False, "expiry": None, "plan": None}
+        save_user_data(data)
+        return {"is_premium": False, "remaining": None, "until": None}
 
     if user.get("premium_until"):
         try:
@@ -2831,16 +2838,26 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if uid_str not in data:
             data[uid_str] = _new_user_record(ADMIN_USER_ID)
         admin_prem = data[uid_str].get("premium", {})
-        is_active = admin_prem.get("is_premium", False)
+        # Handle legacy bool format
+        if isinstance(admin_prem, bool):
+            is_active = admin_prem
+            exp = "Lifetime" if admin_prem else "N/A"
+            plan_name = "Admin Lifetime" if admin_prem else "N/A"
+        elif isinstance(admin_prem, dict):
+            is_active = admin_prem.get("is_premium", False)
+            exp = admin_prem.get("expiry", "N/A")
+            plan_name = admin_prem.get("plan", "N/A")
+        else:
+            is_active = False
+            exp = "N/A"
+            plan_name = "N/A"
         status_icon = "\U0001f7e2" if is_active else "\U0001f534"
         status_text = "ACTIVE" if is_active else "INACTIVE"
-        exp = admin_prem.get("expiry", "N/A")
-        plan = admin_prem.get("plan", "N/A")
         text = (
             f"\U0001f451 MY PREMIUM\n"
             f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
             f"Status: {status_icon} {status_text}\n\n"
-            f"Plan: {plan}\n"
+            f"Plan: {plan_name}\n"
             f"Expiry: {exp}\n\n"
             f"Toggle your own premium status below."
         )
@@ -2859,13 +2876,22 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if uid_str not in data:
             data[uid_str] = _new_user_record(ADMIN_USER_ID)
         admin_prem = data[uid_str].get("premium", {})
-        is_active = admin_prem.get("is_premium", False)
+        # Handle legacy bool format
+        if isinstance(admin_prem, bool):
+            is_active = admin_prem
+        elif isinstance(admin_prem, dict):
+            is_active = admin_prem.get("is_premium", False)
+        else:
+            is_active = False
+        # Toggle
         if is_active:
             data[uid_str]["premium"] = {"is_premium": False, "expiry": None, "plan": None}
-            await query.answer("Premium deactivated", show_alert=True)
+            data[uid_str]["premium_until"] = None
+            await query.answer("\u2705 Premium deactivated!", show_alert=True)
         else:
             data[uid_str]["premium"] = {"is_premium": True, "expiry": "Lifetime", "plan": "Admin Lifetime"}
-            await query.answer("Premium activated (Lifetime)", show_alert=True)
+            data[uid_str]["premium_until"] = "2099-12-31T23:59:59"
+            await query.answer("\u2705 Premium activated (Lifetime)!", show_alert=True)
         save_user_data(data)
         # Refresh page
         admin_prem = data[uid_str]["premium"]
@@ -2873,12 +2899,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status_icon = "\U0001f7e2" if is_active else "\U0001f534"
         status_text = "ACTIVE" if is_active else "INACTIVE"
         exp = admin_prem.get("expiry", "N/A")
-        plan = admin_prem.get("plan", "N/A")
+        plan_name = admin_prem.get("plan", "N/A")
         text = (
             f"\U0001f451 MY PREMIUM\n"
             f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
             f"Status: {status_icon} {status_text}\n\n"
-            f"Plan: {plan}\n"
+            f"Plan: {plan_name}\n"
             f"Expiry: {exp}\n\n"
             f"Toggle your own premium status below."
         )
