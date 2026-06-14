@@ -341,9 +341,6 @@ def ensure_user(user_id: int) -> dict:
 
 
 def get_user_premium_status(user_id: int) -> dict:
-    if user_id == ADMIN_USER_ID:
-        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
-
     data = load_user_data()
     user_str = str(user_id)
 
@@ -352,6 +349,20 @@ def get_user_premium_status(user_id: int) -> dict:
         save_user_data(data)
 
     user = data[user_str]
+
+    # Check admin premium from data (togglable)
+    if user_id == ADMIN_USER_ID:
+        admin_prem = user.get("premium", {})
+        if isinstance(admin_prem, dict) and admin_prem.get("is_premium", False):
+            exp = admin_prem.get("expiry", "Lifetime")
+            return {"is_premium": True, "remaining": "Unlimited", "until": exp}
+        elif isinstance(admin_prem, bool) and admin_prem:
+            return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
+        # If admin premium is off in data, return inactive
+        if isinstance(admin_prem, dict) and not admin_prem.get("is_premium", True):
+            return {"is_premium": False, "remaining": None, "until": None}
+        # Default: admin is premium if no explicit toggle off
+        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
 
     if user.get("premium_until"):
         try:
