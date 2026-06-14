@@ -57,7 +57,8 @@
         "6906461521"
       ],
       "2026-06-14": [
-        "2043981845"
+        "2043981845",
+        "1076744907"
       ]
     }
   },
@@ -222,6 +223,23 @@
       {
         "type": "visit",
         "time": "2026-06-13T22:21:40.286036"
+      }
+    ]
+  },
+  "1076744907": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-14T11:27:31.517765",
+    "watchlist": [],
+    "last_active": "2026-06-14T11:27:31.517758",
+    "username": "isabellaa_sterling",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-14T11:27:31.517758"
       }
     ]
   }
