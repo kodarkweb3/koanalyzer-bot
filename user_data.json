@@ -60,7 +60,8 @@
       "2026-06-14": [
         "2043981845",
         "1076744907",
-        "6953270267"
+        "6953270267",
+        "7782447775"
       ]
     }
   },
@@ -287,5 +288,23 @@
       }
     ]
   },
-  "__campaign_buy1_get1": true
+  "__campaign_buy1_get1": true,
+  "7782447775": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-14T15:45:19.971774",
+    "watchlist": [],
+    "pending_sol_payment": null,
+    "last_active": "2026-06-14T15:45:19.971768",
+    "username": "dany1123",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-14T15:45:19.971768"
+      }
+    ]
+  }
 }
