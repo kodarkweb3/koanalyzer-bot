@@ -88,6 +88,21 @@ PREMIUM_PRICE_STARS = 1520  # ~$21.99
 PREMIUM_DAYS = 30
 ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
+# SOL Payment System
+SOL_WALLET_ADDRESS = "E3mCsp2GqEt2QpC99DwCsp9PfAumMFLSas5Z9p7MK2xP"
+SOL_PAYMENT_CHECK_INTERVAL = 60  # seconds
+
+# Premium Plans (SOL prices in USD equivalent)
+PREMIUM_PLANS = {
+    "1_month": {"days": 30, "price_usd": 18.49, "label": "1 Month", "stars": 1280},
+    "3_month": {"days": 90, "price_usd": 44.99, "label": "3 Months", "stars": 3100},
+    "6_month": {"days": 180, "price_usd": 86.99, "label": "6 Months", "stars": 6000},
+    "12_month": {"days": 365, "price_usd": 154.99, "label": "1 Year", "stars": 10700},
+}
+
+# Campaign: Buy 1 Get 1 Free
+CAMPAIGN_BUY1_GET1 = True  # Admin can toggle this
+
 # Free tier limits
 FREE_ANALYSIS_LIMIT = 3
 FREE_ALARM_LIMIT = 3
@@ -311,6 +326,7 @@ def _new_user_record() -> dict:
         "paid_premium": False,
         "joined": datetime.now().isoformat(),
         "watchlist": [],  # Token watchlist [{"address": ..., "symbol": ..., "name": ..., "added": ...}]
+        "pending_sol_payment": None,  # {"plan": ..., "amount_sol": ..., "created": ..., "memo": ...}
     }
 
 
@@ -991,8 +1007,8 @@ def _check_analysis_access(user_id: int, lang: str = "en") -> str:
         f"⏰ Unlimited price alarms\n"
         f"🎯 Auto-Sniper alerts\n"
         f"📊 Advanced charts\n\n"
-        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
-        f"👇 Tap below to upgrade:"
+        f"From $18.49/month with SOL or {PREMIUM_PLANS['1_month']['stars']} Stars\n\n"
+        f"Tap below to upgrade:"
     )
 
 
@@ -1010,8 +1026,8 @@ def _check_alarm_access(user_id: int, lang: str = "en") -> str:
         f"🔒 Free Alarms Used Up\n\n"
         f"You have used all {FREE_ALARM_LIMIT} free price alarms.\n\n"
         f"💎 Upgrade to Premium for unlimited alarms!\n\n"
-        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
-        f"👇 Tap below to upgrade:"
+        f"From $18.49/month with SOL or {PREMIUM_PLANS['1_month']['stars']} Stars\n\n"
+        f"Tap below to upgrade:"
     )
 
 
@@ -1028,8 +1044,8 @@ def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
         f"🔍 {FREE_ANALYSIS_LIMIT} token analyses\n"
         f"⏰ {FREE_ALARM_LIMIT} price alarms\n\n"
         f"💎 Upgrade to Premium to unlock everything!\n\n"
-        f"💰 Only ~$21.99/month ({PREMIUM_PRICE_STARS} Stars)\n\n"
-        f"👇 Tap below to upgrade:"
+        f"From $18.49/month with SOL or {PREMIUM_PLANS['1_month']['stars']} Stars\n\n"
+        f"Tap below to upgrade:"
     )
 
 
@@ -1038,14 +1054,22 @@ def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
 def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
-            status_line = f"\u2705 Premium Status: Active (Lifetime)"
+            status_line = f"Premium Status: Active (Lifetime) \u2705"
         else:
-            status_line = f"\u2705 Premium Status: Active ({premium['remaining']} left)"
+            status_line = f"Premium Status: Active ({premium['remaining']} left) \u2705"
     else:
         usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
         status_line = (
             f"Premium Status: Inactive\n"
             f"Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms"
+        )
+
+    # Campaign banner
+    campaign_banner = ""
+    if CAMPAIGN_BUY1_GET1 and not premium["is_premium"]:
+        campaign_banner = (
+            f"\n\U0001f0cf Buy 1 Month Premium, Get 1 Month FREE\n"
+            f"Limited time offer. Pay with SOL or Stars.\n"
         )
 
     text = (
@@ -1063,6 +1087,7 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
         f"Price Alarms \u23f0: Set targets and get notified when price hits your level\n\n"
         f"Whale Alerts \U0001f40b: Detect large wallet movements on any token\n\n"
         f"Sniper Alerts \U0001f3af: New token launch notifications from Pump .fun, Raydium, Jupiter\n\n"
+        f"{campaign_banner}"
         f"{status_line}\n\n"
         f"x.com/kodarkweb3\n"
         f"x.com/kodarkio"
@@ -1155,41 +1180,56 @@ def _build_premium_text(premium: dict, user_id: int = None) -> str:
     if premium["is_premium"]:
         if premium["remaining"] == "Unlimited":
             return (
-                f"💎 PREMIUM STATUS\n\n"
-                f"✅ Status: Active (Lifetime)\n\n"
-                f"🔓 All premium features are unlocked!\n\n"
-                f"Thank you for your support!"
+                f"PREMIUM STATUS\n\n"
+                f"Status: Active (Lifetime) \u2705\n\n"
+                f"All premium features are unlocked.\n\n"
+                f"Thank you for your support."
             )
         else:
             return (
-                f"💎 PREMIUM STATUS\n\n"
-                f"✅ Status: Active\n"
-                f"⏰ Remaining: {premium['remaining']}\n"
-                f"📅 Expires: {premium['until']}\n\n"
-                f"🔓 All premium features are unlocked!\n\n"
-                f"🔄 Your subscription will need to be renewed\n"
-                f"before the expiry date to keep access."
+                f"PREMIUM STATUS\n\n"
+                f"Status: Active \u2705\n"
+                f"Remaining: {premium['remaining']}\n"
+                f"Expires: {premium['until']}\n\n"
+                f"All premium features are unlocked.\n\n"
+                f"Renew before expiry to keep access."
             )
     else:
         usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+        campaign_text = ""
+        if CAMPAIGN_BUY1_GET1:
+            campaign_text = (
+                f"\n\U0001f0cf LIMITED OFFER: Buy 1 Month, Get 1 Month FREE\n"
+                f"(Campaign active for a limited time)\n"
+            )
         return (
-            f"💎 PREMIUM STATUS\n\n"
-            f"❌ Status: Inactive\n\n"
-            f"🆓 Free Tier Remaining:\n"
-            f"🔍 Analyses: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
-            f"⏰ Alarms: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n\n"
-            f"🔒 Premium features include:\n"
-            f"🔍 Unlimited token analysis\n"
-            f"🤖 AI-powered reports\n"
-            f"🐋 Whale alert notifications\n"
-            f"⏰ Unlimited price alarms\n"
-            f"🎯 Auto-Sniper alerts\n"
-            f"📊 Advanced charts\n"
-            f"⚡ Priority support\n\n"
-            f"💰 Price: ~$21.99 ({PREMIUM_PRICE_STARS} Telegram Stars)\n"
-            f"📅 Duration: {PREMIUM_DAYS} days\n\n"
-            f"💳 Pay securely via Telegram Stars\n\n"
-            f"👇 Tap the button below to purchase:"
+            f"PREMIUM STATUS\n\n"
+            f"Status: Inactive\n\n"
+            f"Free Tier Remaining:\n"
+            f"Analyses: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
+            f"Alarms: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n\n"
+            f"Premium features:\n"
+            f"Unlimited token analysis\n"
+            f"AI-powered reports\n"
+            f"Whale alert notifications\n"
+            f"Unlimited price alarms\n"
+            f"Auto-Sniper alerts\n"
+            f"Advanced charts\n"
+            f"Smart Money Tracker\n"
+            f"Daily Market Summary\n\n"
+            f"{campaign_text}\n"
+            f"\u2501\u2501\u2501 PRICING \u2501\u2501\u2501\n\n"
+            f"Pay with SOL (cheaper, no commission):\n"
+            f"1 Month: $18.49\n"
+            f"3 Months: $44.99 (save 19%)\n"
+            f"6 Months: $86.99 (save 22%)\n"
+            f"1 Year: $154.99 (save 30%)\n\n"
+            f"Pay with Telegram Stars:\n"
+            f"1 Month: {PREMIUM_PLANS['1_month']['stars']} Stars (~$21.99)\n"
+            f"3 Months: {PREMIUM_PLANS['3_month']['stars']} Stars\n"
+            f"6 Months: {PREMIUM_PLANS['6_month']['stars']} Stars\n"
+            f"1 Year: {PREMIUM_PLANS['12_month']['stars']} Stars\n\n"
+            f"Select a plan below:"
         )
 
 
@@ -1199,19 +1239,126 @@ def _build_premium_keyboard(premium: dict) -> InlineKeyboardMarkup:
             [InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
         ]
         if premium["remaining"] != "Unlimited":
-            kb.append([InlineKeyboardButton("Renew Premium", callback_data="buy_premium")])
+            kb.append([InlineKeyboardButton("Renew Premium", callback_data="select_plan")])
         kb.append([InlineKeyboardButton("Main Menu", callback_data="home")])
         return InlineKeyboardMarkup(kb)
     else:
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+            [InlineKeyboardButton("Pay with SOL (Cheaper)", callback_data="pay_sol_select")],
+            [InlineKeyboardButton("Pay with Telegram Stars", callback_data="pay_stars_select")],
             [InlineKeyboardButton("Main Menu", callback_data="home")],
         ])
 
 
-# ==================== TELEGRAM STARS PAYMENT ====================
+# ==================== PAYMENT SYSTEM (SOL + TELEGRAM STARS) ====================
 
-async def send_premium_invoice(update_or_query, context: ContextTypes.DEFAULT_TYPE):
+
+def _get_sol_price_usd() -> float:
+    """Get current SOL price in USD."""
+    try:
+        sol = get_solana_price()
+        if "error" not in sol:
+            return sol["price"]
+    except Exception:
+        pass
+    return 0.0
+
+
+def _calculate_sol_amount(plan_key: str) -> float:
+    """Calculate SOL amount needed for a plan based on current SOL price."""
+    plan = PREMIUM_PLANS.get(plan_key)
+    if not plan:
+        return 0.0
+    sol_price = _get_sol_price_usd()
+    if sol_price <= 0:
+        return 0.0
+    return round(plan["price_usd"] / sol_price, 4)
+
+
+def _generate_payment_memo(user_id: int) -> str:
+    """Generate unique memo for SOL payment identification."""
+    import hashlib
+    raw = f"{user_id}_{datetime.now().timestamp()}"
+    return hashlib.md5(raw.encode()).hexdigest()[:8]
+
+
+async def _verify_sol_payment(wallet_address: str, expected_amount: float, memo: str, created_after: str) -> bool:
+    """Verify SOL payment by checking recent transactions to our wallet."""
+    try:
+        url = _get_solana_rpc_url()
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSignaturesForAddress",
+            "params": [
+                SOL_WALLET_ADDRESS,
+                {"limit": 20}
+            ]
+        }
+        resp = http_requests.post(url, json=payload, timeout=15)
+        if resp.status_code != 200:
+            return False
+
+        data = resp.json()
+        if "error" in data:
+            return False
+
+        result = data.get("result", [])
+        created_ts = datetime.fromisoformat(created_after).timestamp()
+
+        for sig_info in result:
+            block_time = sig_info.get("blockTime", 0)
+            if block_time < created_ts:
+                continue
+            if sig_info.get("err"):
+                continue
+
+            # Get transaction details
+            sig = sig_info.get("signature")
+            tx_url = _get_solana_rpc_url()
+            tx_payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTransaction",
+                "params": [sig, {"encoding": "jsonParsed", "maxSupportedTransactionVersion": 0}]
+            }
+            tx_resp = http_requests.post(tx_url, json=tx_payload, timeout=10)
+            if tx_resp.status_code != 200:
+                continue
+
+            tx_result = tx_resp.json().get("result")
+            if not tx_result:
+                continue
+
+            meta = tx_result.get("meta", {})
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+
+            # Check if this is a SOL transfer to our wallet
+            account_keys = tx_result.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            our_index = -1
+            for i, key in enumerate(account_keys):
+                pubkey = key.get("pubkey", "") if isinstance(key, dict) else str(key)
+                if pubkey == SOL_WALLET_ADDRESS:
+                    our_index = i
+                    break
+
+            if our_index >= 0 and our_index < len(pre_balances) and our_index < len(post_balances):
+                received_lamports = post_balances[our_index] - pre_balances[our_index]
+                received_sol = received_lamports / 1_000_000_000
+                # Allow 2% tolerance for price fluctuation
+                if received_sol >= expected_amount * 0.98:
+                    return True
+
+        return False
+    except Exception as e:
+        logger.error(f"SOL payment verification error: {e}")
+        return False
+
+
+async def send_premium_invoice(update_or_query, context: ContextTypes.DEFAULT_TYPE, plan_key: str = "1_month"):
+    """Send Telegram Stars invoice for selected plan."""
+    plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1_month"])
     if hasattr(update_or_query, 'message') and update_or_query.message:
         chat_id = update_or_query.message.chat_id
     elif hasattr(update_or_query, 'from_user'):
@@ -1219,27 +1366,26 @@ async def send_premium_invoice(update_or_query, context: ContextTypes.DEFAULT_TY
     else:
         chat_id = update_or_query.effective_chat.id
 
+    days_label = plan["days"]
+    campaign_note = ""
+    if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+        campaign_note = "\n\n\U0001f0cf BONUS: +1 Month FREE (campaign active)"
+
     await context.bot.send_invoice(
         chat_id=chat_id,
-        title="kodark.io Premium Subscription",
-        description=f"Unlock {PREMIUM_DAYS}-day Premium Access\n\n"
-                    f"Unlimited token analysis\n"
-                    f"AI-powered reports\n"
-                    f"Whale tracking & alerts\n"
-                    f"Price alarm system\n"
-                    f"Auto-Sniper alerts\n"
-                    f"Advanced charts\n"
-                    f"Risk assessment tools",
-        payload="premium_subscription",
+        title=f"kodark.io Premium - {plan['label']}",
+        description=f"Unlock {days_label}-day Premium Access\n"
+                    f"Unlimited analysis, whale alerts, sniper, charts{campaign_note}",
+        payload=f"premium_{plan_key}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label="Premium Subscription", amount=PREMIUM_PRICE_STARS)],
+        prices=[LabeledPrice(label=f"Premium {plan['label']}", amount=plan["stars"])],
     )
 
 
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.pre_checkout_query
-    if query.invoice_payload == "premium_subscription":
+    if query.invoice_payload.startswith("premium_"):
         await query.answer(ok=True)
     else:
         await query.answer(ok=False, error_message="Unknown payment type.")
@@ -1249,8 +1395,16 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
     payment = update.message.successful_payment
     user_id = update.effective_user.id
 
-    if payment.invoice_payload == "premium_subscription":
-        until = activate_premium(user_id, days=PREMIUM_DAYS)
+    if payment.invoice_payload.startswith("premium_"):
+        plan_key = payment.invoice_payload.replace("premium_", "")
+        plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1_month"])
+        days = plan["days"]
+
+        # Apply campaign bonus
+        if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+            days = 60  # Double the days
+
+        until = activate_premium(user_id, days=days)
         data = load_user_data()
         user_str = str(user_id)
         if user_str in data:
@@ -1260,16 +1414,20 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
         record_user_activity(user_id, username, "payment")
         date_str = until.strftime('%d.%m.%Y %H:%M')
 
+        bonus_text = ""
+        if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+            bonus_text = "\n\U0001f0cf Campaign Bonus: +30 days FREE applied!"
+
         kb = [
             [InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
             [InlineKeyboardButton("Main Menu", callback_data="home")],
         ]
         await update.message.reply_text(
-            f"🎉 Payment Successful!\n\n"
-            f"✅ Your {PREMIUM_DAYS}-day Premium subscription is now active!\n"
-            f"📅 Expires: {date_str}\n\n"
-            f"🔓 All premium features are unlocked.\n"
-            f"Enjoy unlimited access!",
+            f"Payment Successful!\n\n"
+            f"Your {days}-day Premium subscription is now active \u2705\n"
+            f"Expires: {date_str}\n"
+            f"{bonus_text}\n\n"
+            f"All premium features are unlocked.",
             reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
         )
 
@@ -1478,6 +1636,7 @@ def _build_admin_keyboard(stats: dict = None) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("👥 Recent Users", callback_data="admin_users")],
         [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
         [InlineKeyboardButton("🎁 Premium Hediye Et", callback_data="admin_gift_premium")],
+        [InlineKeyboardButton(f"\U0001f0cf Campaign 1+1: {'ON' if CAMPAIGN_BUY1_GET1 else 'OFF'}", callback_data="admin_toggle_campaign")],
         [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
         [InlineKeyboardButton(fb_label, callback_data="admin_feedback")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
@@ -1633,6 +1792,7 @@ async def welcome_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== CALLBACK HANDLER ====================
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global CAMPAIGN_BUY1_GET1
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
@@ -1684,7 +1844,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1716,7 +1876,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1784,7 +1944,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Advanced Charts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1840,7 +2000,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_alarm_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1901,7 +2061,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Whale Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_back', lang), callback_data="token_actions")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
@@ -1993,7 +2153,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Whale Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2030,7 +2190,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Auto-Sniper Alerts")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2103,7 +2263,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Market Signals")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2119,7 +2279,202 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
 
     elif query.data == "buy_premium":
-        await send_premium_invoice(query, context)
+        # Legacy callback - redirect to plan selection
+        premium = get_user_premium_status(user_id)
+        text = _build_premium_text(premium, user_id)
+        kb = _build_premium_keyboard(premium)
+        await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
+
+    elif query.data == "select_plan":
+        premium = get_user_premium_status(user_id)
+        text = _build_premium_text(premium, user_id)
+        kb = _build_premium_keyboard(premium)
+        await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
+
+    elif query.data == "pay_sol_select":
+        sol_price = _get_sol_price_usd()
+        if sol_price <= 0:
+            await query.answer("Could not fetch SOL price. Try again.", show_alert=True)
+            return
+        text = (
+            f"PAY WITH SOL \u2660\ufe0f\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Current SOL price: ${sol_price:.2f}\n\n"
+            f"Select your plan:\n\n"
+        )
+        campaign_note = ""
+        if CAMPAIGN_BUY1_GET1:
+            campaign_note = " (+1 Month FREE)"
+        for key, plan in PREMIUM_PLANS.items():
+            sol_amount = round(plan["price_usd"] / sol_price, 4)
+            bonus = campaign_note if key == "1_month" else ""
+            text += f"{plan['label']}: {sol_amount} SOL (${plan['price_usd']}){bonus}\n"
+        text += f"\nNo commission. 100% goes to the developer.\nSelect a plan:"
+        kb = []
+        for key, plan in PREMIUM_PLANS.items():
+            sol_amount = round(plan["price_usd"] / sol_price, 4)
+            bonus = " +1 FREE" if CAMPAIGN_BUY1_GET1 and key == "1_month" else ""
+            kb.append([InlineKeyboardButton(f"{plan['label']} - {sol_amount} SOL{bonus}", callback_data=f"sol_pay_{key}")])
+        kb.append([InlineKeyboardButton("Back", callback_data="premium")])
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data == "pay_stars_select":
+        text = (
+            f"PAY WITH TELEGRAM STARS \u2666\ufe0f\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Select your plan:\n\n"
+        )
+        campaign_note = ""
+        if CAMPAIGN_BUY1_GET1:
+            campaign_note = " (+1 Month FREE)"
+        for key, plan in PREMIUM_PLANS.items():
+            bonus = campaign_note if key == "1_month" else ""
+            text += f"{plan['label']}: {plan['stars']} Stars{bonus}\n"
+        text += f"\nPay securely via Telegram.\nSelect a plan:"
+        kb = []
+        for key, plan in PREMIUM_PLANS.items():
+            bonus = " +1 FREE" if CAMPAIGN_BUY1_GET1 and key == "1_month" else ""
+            kb.append([InlineKeyboardButton(f"{plan['label']} - {plan['stars']} Stars{bonus}", callback_data=f"stars_pay_{key}")])
+        kb.append([InlineKeyboardButton("Back", callback_data="premium")])
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data.startswith("stars_pay_"):
+        plan_key = query.data.replace("stars_pay_", "")
+        await send_premium_invoice(query, context, plan_key=plan_key)
+
+    elif query.data.startswith("sol_pay_"):
+        plan_key = query.data.replace("sol_pay_", "")
+        plan = PREMIUM_PLANS.get(plan_key)
+        if not plan:
+            await query.answer("Invalid plan.", show_alert=True)
+            return
+        sol_price = _get_sol_price_usd()
+        if sol_price <= 0:
+            await query.answer("Could not fetch SOL price. Try again.", show_alert=True)
+            return
+        sol_amount = round(plan["price_usd"] / sol_price, 4)
+        memo = _generate_payment_memo(user_id)
+
+        # Save pending payment
+        data = load_user_data()
+        user_str = str(user_id)
+        if user_str not in data:
+            data[user_str] = _new_user_record()
+        data[user_str]["pending_sol_payment"] = {
+            "plan": plan_key,
+            "amount_sol": sol_amount,
+            "price_usd": plan["price_usd"],
+            "created": datetime.now().isoformat(),
+            "memo": memo,
+            "verified": False,
+        }
+        save_user_data(data)
+
+        campaign_note = ""
+        if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+            campaign_note = "\n\n\U0001f0cf BONUS: You will receive 60 days (1+1 campaign active)"
+
+        text = (
+            f"SOL PAYMENT \u2660\ufe0f\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Plan: {plan['label']}\n"
+            f"Amount: {sol_amount} SOL (${plan['price_usd']})\n\n"
+            f"Send exactly {sol_amount} SOL to:\n\n"
+            f"`{SOL_WALLET_ADDRESS}`\n\n"
+            f"(Tap to copy)\n\n"
+            f"Payment ID: {memo}\n"
+            f"{campaign_note}\n\n"
+            f"After sending, tap 'Verify Payment' below.\n"
+            f"The bot will automatically check the blockchain.\n\n"
+            f"Payment valid for 30 minutes."
+        )
+        kb = [
+            [InlineKeyboardButton("Verify Payment \u2705", callback_data=f"verify_sol_{memo}")],
+            [InlineKeyboardButton("Cancel", callback_data="premium")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown", disable_web_page_preview=True)
+
+    elif query.data.startswith("verify_sol_"):
+        memo = query.data.replace("verify_sol_", "")
+        data = load_user_data()
+        user_str = str(user_id)
+        pending = data.get(user_str, {}).get("pending_sol_payment")
+
+        if not pending or pending.get("memo") != memo:
+            await query.answer("No pending payment found.", show_alert=True)
+            return
+
+        if pending.get("verified"):
+            await query.answer("This payment was already verified.", show_alert=True)
+            return
+
+        # Check if payment expired (30 min)
+        created = datetime.fromisoformat(pending["created"])
+        if (datetime.now() - created).total_seconds() > 1800:
+            data[user_str]["pending_sol_payment"] = None
+            save_user_data(data)
+            await query.answer("Payment expired. Please start a new payment.", show_alert=True)
+            return
+
+        await query.answer("Checking blockchain... Please wait.", show_alert=False)
+
+        # Verify on blockchain
+        verified = await _verify_sol_payment(
+            SOL_WALLET_ADDRESS,
+            pending["amount_sol"],
+            pending["memo"],
+            pending["created"]
+        )
+
+        if verified:
+            plan_key = pending["plan"]
+            plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1_month"])
+            days = plan["days"]
+
+            # Apply campaign bonus
+            if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+                days = 60
+
+            until = activate_premium(user_id, days=days)
+            data[user_str]["paid_premium"] = True
+            data[user_str]["pending_sol_payment"] = None
+            save_user_data(data)
+
+            username = update.effective_user.username or update.effective_user.first_name or "Unknown"
+            record_user_activity(user_id, username, "sol_payment")
+            date_str = until.strftime('%d.%m.%Y %H:%M')
+
+            bonus_text = ""
+            if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+                bonus_text = "\n\U0001f0cf Campaign Bonus: +30 days FREE applied!"
+
+            kb = [
+                [InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
+                [InlineKeyboardButton("Main Menu", callback_data="home")],
+            ]
+            await query.edit_message_text(
+                f"Payment Verified \u2705\n\n"
+                f"Your {days}-day Premium subscription is now active!\n"
+                f"Expires: {date_str}\n"
+                f"{bonus_text}\n\n"
+                f"All premium features are unlocked.\n"
+                f"Thank you for your support!",
+                reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
+            )
+        else:
+            kb = [
+                [InlineKeyboardButton("Verify Payment \u2705", callback_data=f"verify_sol_{memo}")],
+                [InlineKeyboardButton("Cancel", callback_data="premium")],
+            ]
+            await query.edit_message_text(
+                f"Payment not found yet.\n\n"
+                f"If you already sent {pending['amount_sol']} SOL to:\n"
+                f"`{SOL_WALLET_ADDRESS}`\n\n"
+                f"Please wait 1-2 minutes for blockchain confirmation,\n"
+                f"then tap 'Verify Payment' again.\n\n"
+                f"Payment ID: {memo}",
+                reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown", disable_web_page_preview=True,
+            )
 
     # ===== FEEDBACK =====
     elif query.data == "feedback_start":
@@ -2407,6 +2762,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await query.edit_message_text(_build_feedback_text(), reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
 
+    elif query.data == "admin_toggle_campaign":
+        if user_id != ADMIN_USER_ID:
+            return
+        CAMPAIGN_BUY1_GET1 = not CAMPAIGN_BUY1_GET1
+        status = "ON \u2705" if CAMPAIGN_BUY1_GET1 else "OFF \u274c"
+        # Save to persistent data
+        data = load_user_data()
+        data["__campaign_buy1_get1"] = CAMPAIGN_BUY1_GET1
+        save_user_data(data)
+        await query.answer(f"Campaign 1+1 is now {status}", show_alert=True)
+        # Refresh admin panel
+        stats = get_admin_stats()
+        await query.edit_message_text(_build_admin_text(stats), reply_markup=_build_admin_keyboard(stats), disable_web_page_preview=True)
+
     elif query.data == "admin_gift_premium":
         if user_id != ADMIN_USER_ID:
             return
@@ -2442,7 +2811,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_premium_only(user_id, "Smart Money Wallet Tracker")
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2739,7 +3108,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_alarm_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2776,7 +3145,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2846,7 +3215,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         paywall = _check_analysis_access(user_id, lang)
         if paywall:
             kb = [
-                [InlineKeyboardButton("Buy Premium - ~$21.99", callback_data="buy_premium")],
+                [InlineKeyboardButton("Upgrade Premium - from $18.49", callback_data="buy_premium")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -3127,12 +3496,92 @@ async def background_daily_summary(app):
 
 async def post_init(app):
     """Start background tasks after bot initialization."""
+    # Load campaign state from persistent data
+    global CAMPAIGN_BUY1_GET1
+    try:
+        data = load_user_data()
+        if "__campaign_buy1_get1" in data:
+            CAMPAIGN_BUY1_GET1 = data["__campaign_buy1_get1"]
+            logger.info(f"Campaign 1+1 loaded: {'ON' if CAMPAIGN_BUY1_GET1 else 'OFF'}")
+    except Exception:
+        pass
+
     asyncio.create_task(background_price_check(app))
     asyncio.create_task(background_whale_check(app))
     asyncio.create_task(background_sniper_check(app))
     asyncio.create_task(background_wallet_tracker(app))
     asyncio.create_task(background_daily_summary(app))
-    logger.info("Background monitoring tasks started (price, whale, sniper, wallet tracker, daily summary).")
+    asyncio.create_task(background_sol_payment_check(app))
+    logger.info("Background monitoring tasks started (price, whale, sniper, wallet tracker, daily summary, sol payment).")
+
+
+async def background_sol_payment_check(app):
+    """Background task to auto-verify pending SOL payments."""
+    while True:
+        try:
+            await asyncio.sleep(SOL_PAYMENT_CHECK_INTERVAL)
+            data = load_user_data()
+            now = datetime.now()
+
+            for user_str, ud in list(data.items()):
+                if user_str.startswith("__"):
+                    continue
+                pending = ud.get("pending_sol_payment")
+                if not pending or pending.get("verified"):
+                    continue
+
+                # Check if expired (30 min)
+                created = datetime.fromisoformat(pending["created"])
+                if (now - created).total_seconds() > 1800:
+                    data[user_str]["pending_sol_payment"] = None
+                    save_user_data(data)
+                    continue
+
+                # Try to verify
+                verified = await _verify_sol_payment(
+                    SOL_WALLET_ADDRESS,
+                    pending["amount_sol"],
+                    pending["memo"],
+                    pending["created"]
+                )
+
+                if verified:
+                    plan_key = pending["plan"]
+                    plan = PREMIUM_PLANS.get(plan_key, PREMIUM_PLANS["1_month"])
+                    days = plan["days"]
+                    if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+                        days = 60
+
+                    user_id = int(user_str)
+                    until = activate_premium(user_id, days=days)
+                    data[user_str]["paid_premium"] = True
+                    data[user_str]["pending_sol_payment"] = None
+                    save_user_data(data)
+
+                    bonus_text = ""
+                    if CAMPAIGN_BUY1_GET1 and plan_key == "1_month":
+                        bonus_text = "\n\U0001f0cf Campaign Bonus: +30 days FREE applied!"
+
+                    try:
+                        await app.bot.send_message(
+                            chat_id=user_id,
+                            text=(
+                                f"Payment Verified \u2705\n\n"
+                                f"Your {days}-day Premium subscription is now active!\n"
+                                f"Expires: {until.strftime('%d.%m.%Y %H:%M')}\n"
+                                f"{bonus_text}\n\n"
+                                f"All premium features are unlocked.\n"
+                                f"Thank you for your support!"
+                            ),
+                            disable_web_page_preview=True,
+                        )
+                    except Exception as e:
+                        logger.error(f"Could not notify user {user_str} about payment: {e}")
+
+                    logger.info(f"Auto-verified SOL payment for user {user_str}, plan: {plan_key}")
+
+        except Exception as e:
+            logger.error(f"Background SOL payment check error: {e}")
 
 
 # ==================== MAIN ====================
