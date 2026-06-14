@@ -6,7 +6,7 @@
       "plan": "Admin Lifetime"
     },
     "premium_until": "2099-12-31T23:59:59",
-    "analysis_count": 1,
+    "analysis_count": 2,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T08:40:45.037469",
@@ -34,7 +34,7 @@
         "time": "2026-06-14T17:05:50.618033"
       }
     ],
-    "last_analysis": "2026-06-11T08:42:19.571623"
+    "last_analysis": "2026-06-14T17:06:09.986236"
   },
   "__stats__": {
     "total_analyses": 6,
