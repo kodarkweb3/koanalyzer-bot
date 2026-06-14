@@ -1068,8 +1068,8 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
     campaign_banner = ""
     if CAMPAIGN_BUY1_GET1 and not premium["is_premium"]:
         campaign_banner = (
-            f"\n\U0001f0cf Buy 1 Month Premium, Get 1 Month FREE\n"
-            f"Limited time offer. Pay with SOL or Stars.\n"
+            f"\n\U0001f0cf Buy 1 Month, Get 1 Month FREE\n"
+            f"Pay with SOL. Limited time only.\n"
         )
 
     text = (
@@ -1200,7 +1200,7 @@ def _build_premium_text(premium: dict, user_id: int = None) -> str:
         if CAMPAIGN_BUY1_GET1:
             campaign_text = (
                 f"\n\U0001f0cf LIMITED OFFER: Buy 1 Month, Get 1 Month FREE\n"
-                f"(Campaign active for a limited time)\n"
+                f"SOL payment only. Limited time.\n"
             )
         return (
             f"PREMIUM STATUS\n\n"
@@ -1629,6 +1629,7 @@ def _build_admin_keyboard(stats: dict = None) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("💎 Premium Users", callback_data="admin_premium_list")],
         [InlineKeyboardButton("🎁 Premium Hediye Et", callback_data="admin_gift_premium")],
         [InlineKeyboardButton("\U0001f0cf Campaign Management " + ("\U0001f7e2" if CAMPAIGN_BUY1_GET1 else "\U0001f534"), callback_data="admin_campaign")],
+        [InlineKeyboardButton("\U0001f451 My Premium", callback_data="admin_my_premium")],
         [InlineKeyboardButton("📊 Detailed Analytics", callback_data="admin_analytics")],
         [InlineKeyboardButton(fb_label, callback_data="admin_feedback")],
         [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast_info")],
@@ -2807,6 +2808,72 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         kb = [
             [InlineKeyboardButton(toggle_btn_text, callback_data="admin_toggle_campaign")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data == "admin_my_premium":
+        if user_id != ADMIN_USER_ID:
+            return
+        data = load_user_data()
+        uid_str = str(ADMIN_USER_ID)
+        if uid_str not in data:
+            data[uid_str] = _new_user_record(ADMIN_USER_ID)
+        admin_prem = data[uid_str].get("premium", {})
+        is_active = admin_prem.get("is_premium", False)
+        status_icon = "\U0001f7e2" if is_active else "\U0001f534"
+        status_text = "ACTIVE" if is_active else "INACTIVE"
+        exp = admin_prem.get("expiry", "N/A")
+        plan = admin_prem.get("plan", "N/A")
+        text = (
+            f"\U0001f451 MY PREMIUM\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Status: {status_icon} {status_text}\n\n"
+            f"Plan: {plan}\n"
+            f"Expiry: {exp}\n\n"
+            f"Toggle your own premium status below."
+        )
+        toggle_text = "\U0001f534 Deactivate My Premium" if is_active else "\U0001f7e2 Activate My Premium (Lifetime)"
+        kb = [
+            [InlineKeyboardButton(toggle_text, callback_data="admin_toggle_my_premium")],
+            [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
+        ]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
+
+    elif query.data == "admin_toggle_my_premium":
+        if user_id != ADMIN_USER_ID:
+            return
+        data = load_user_data()
+        uid_str = str(ADMIN_USER_ID)
+        if uid_str not in data:
+            data[uid_str] = _new_user_record(ADMIN_USER_ID)
+        admin_prem = data[uid_str].get("premium", {})
+        is_active = admin_prem.get("is_premium", False)
+        if is_active:
+            data[uid_str]["premium"] = {"is_premium": False, "expiry": None, "plan": None}
+            await query.answer("Premium deactivated", show_alert=True)
+        else:
+            data[uid_str]["premium"] = {"is_premium": True, "expiry": "Lifetime", "plan": "Admin Lifetime"}
+            await query.answer("Premium activated (Lifetime)", show_alert=True)
+        save_user_data(data)
+        # Refresh page
+        admin_prem = data[uid_str]["premium"]
+        is_active = admin_prem.get("is_premium", False)
+        status_icon = "\U0001f7e2" if is_active else "\U0001f534"
+        status_text = "ACTIVE" if is_active else "INACTIVE"
+        exp = admin_prem.get("expiry", "N/A")
+        plan = admin_prem.get("plan", "N/A")
+        text = (
+            f"\U0001f451 MY PREMIUM\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"Status: {status_icon} {status_text}\n\n"
+            f"Plan: {plan}\n"
+            f"Expiry: {exp}\n\n"
+            f"Toggle your own premium status below."
+        )
+        toggle_text = "\U0001f534 Deactivate My Premium" if is_active else "\U0001f7e2 Activate My Premium (Lifetime)"
+        kb = [
+            [InlineKeyboardButton(toggle_text, callback_data="admin_toggle_my_premium")],
             [InlineKeyboardButton("\u25c0\ufe0f Back to Panel", callback_data="admin_refresh")],
         ]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
