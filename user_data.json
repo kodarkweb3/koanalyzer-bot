@@ -234,12 +234,16 @@
     "paid_premium": false,
     "joined": "2026-06-14T11:27:31.517765",
     "watchlist": [],
-    "last_active": "2026-06-14T11:27:31.517758",
+    "last_active": "2026-06-14T11:28:10.486175",
     "username": "isabellaa_sterling",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-14T11:27:31.517758"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-14T11:28:10.486175"
       }
     ]
   }
