@@ -59,7 +59,8 @@
       ],
       "2026-06-14": [
         "2043981845",
-        "1076744907"
+        "1076744907",
+        "6953270267"
       ]
     }
   },
@@ -252,5 +253,22 @@
       }
     ],
     "last_analysis": "2026-06-14T11:28:26.924887"
+  },
+  "6953270267": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-14T11:41:16.953774",
+    "watchlist": [],
+    "last_active": "2026-06-14T11:41:16.953768",
+    "username": "pablos220",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-14T11:41:16.953768"
+      }
+    ]
   }
 }
