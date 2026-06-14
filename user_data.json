@@ -10,13 +10,9 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T08:40:45.037469",
-    "last_active": "2026-06-14T17:06:10.882341",
+    "last_active": "2026-06-14T17:07:35.729561",
     "username": "yms56",
     "activity_log": [
-      {
-        "type": "visit",
-        "time": "2026-06-14T15:46:59.463798"
-      },
       {
         "type": "visit",
         "time": "2026-06-14T15:47:45.911835"
@@ -32,6 +28,10 @@
       {
         "type": "analysis",
         "time": "2026-06-14T17:06:10.882341"
+      },
+      {
+        "type": "visit",
+        "time": "2026-06-14T17:07:35.729561"
       }
     ],
     "last_analysis": "2026-06-14T17:06:09.986236"
