@@ -66,6 +66,9 @@
         "1076744907",
         "6953270267",
         "7782447775"
+      ],
+      "2026-06-15": [
+        "5058652541"
       ]
     }
   },
@@ -308,6 +311,24 @@
       {
         "type": "visit",
         "time": "2026-06-14T15:45:19.971768"
+      }
+    ]
+  },
+  "5058652541": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-15T02:41:17.430295",
+    "watchlist": [],
+    "pending_sol_payment": null,
+    "last_active": "2026-06-15T02:41:17.430289",
+    "username": "CasinoQueen143",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-15T02:41:17.430289"
       }
     ]
   }
