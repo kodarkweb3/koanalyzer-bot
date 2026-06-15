@@ -374,7 +374,7 @@
     "paid_premium": false,
     "joined": "2026-06-15T18:14:54.505883",
     "watchlist": [],
-    "last_active": "2026-06-15T18:16:49.746664",
+    "last_active": "2026-06-15T18:19:47.505824",
     "username": "X0mhdxc",
     "activity_log": [
       {
@@ -388,6 +388,10 @@
       {
         "type": "analysis",
         "time": "2026-06-15T18:16:49.746664"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-15T18:19:47.505824"
       }
     ],
     "last_analysis": "2026-06-15T18:16:48.931253"
