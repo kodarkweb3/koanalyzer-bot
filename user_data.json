@@ -323,7 +323,7 @@
     "joined": "2026-06-15T02:41:17.430295",
     "watchlist": [],
     "pending_sol_payment": null,
-    "last_active": "2026-06-15T02:41:30.229130",
+    "last_active": "2026-06-15T02:41:30.994067",
     "username": "CasinoQueen143",
     "activity_log": [
       {
@@ -333,6 +333,10 @@
       {
         "type": "message",
         "time": "2026-06-15T02:41:30.229130"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-15T02:41:30.994067"
       }
     ]
   }
