@@ -68,7 +68,8 @@
         "7782447775"
       ],
       "2026-06-15": [
-        "5058652541"
+        "5058652541",
+        "6309947854"
       ]
     }
   },
@@ -337,6 +338,24 @@
       {
         "type": "message",
         "time": "2026-06-15T02:41:30.994067"
+      }
+    ]
+  },
+  "6309947854": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-15T07:39:54.796796",
+    "watchlist": [],
+    "pending_sol_payment": null,
+    "last_active": "2026-06-15T07:39:54.796789",
+    "username": "\ud83d\udc09\ud83d\udc09",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-15T07:39:54.796789"
       }
     ]
   }
