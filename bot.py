@@ -348,9 +348,6 @@ def ensure_user(user_id: int) -> dict:
 
 
 def get_user_premium_status(user_id: int) -> dict:
-    if user_id == ADMIN_USER_ID:
-        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
-
     data = load_user_data()
     user_str = str(user_id)
 
@@ -360,11 +357,14 @@ def get_user_premium_status(user_id: int) -> dict:
 
     user = data[user_str]
 
+    # Check premium_until field first (works for both admin and regular users)
     if user.get("premium_until"):
         try:
             until = datetime.fromisoformat(user["premium_until"])
             if until > datetime.now():
                 remaining = until - datetime.now()
+                if remaining.days > 36500:  # Lifetime (admin)
+                    return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
                 return {
                     "is_premium": True,
                     "remaining": f"{remaining.days}d {remaining.seconds // 3600}h",
@@ -378,7 +378,25 @@ def get_user_premium_status(user_id: int) -> dict:
         except Exception:
             pass
 
-    return {"is_premium": user.get("premium", False), "remaining": None, "until": None}
+    # Check premium field (legacy bool or dict)
+    prem = user.get("premium", False)
+    if isinstance(prem, dict):
+        if prem.get("is_premium", False):
+            return {"is_premium": True, "remaining": "Unlimited", "until": prem.get("expiry", "Lifetime")}
+        return {"is_premium": False, "remaining": None, "until": None}
+    elif isinstance(prem, bool) and prem:
+        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
+
+    # Admin fallback - if no premium data exists yet, give admin premium by default
+    if user_id == ADMIN_USER_ID:
+        # Auto-activate admin premium on first check
+        user["premium"] = {"is_premium": True, "expiry": "Lifetime", "plan": "Admin Lifetime"}
+        user["premium_until"] = "2099-12-31T23:59:59"
+        data[user_str] = user
+        save_user_data(data)
+        return {"is_premium": True, "remaining": "Unlimited", "until": "Lifetime"}
+
+    return {"is_premium": False, "remaining": None, "until": None}
 
 
 def activate_premium(user_id: int, days: int = 30):
@@ -1847,9 +1865,13 @@ async def welcome_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global CAMPAIGN_BUY1_GET1
     query = update.callback_query
-    await query.answer()
     user_id = query.from_user.id
     lang = get_user_lang(user_id)
+
+    # Don't auto-answer for callbacks that need custom answer (show_alert)
+    no_auto_answer = ("admin_toggle_my_premium", "admin_campaign_toggle")
+    if query.data not in no_auto_answer:
+        await query.answer()
 
     # ===== HOME =====
     if query.data == "home":
