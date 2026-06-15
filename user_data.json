@@ -369,7 +369,7 @@
   "2121285435": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 2,
+    "analysis_count": 3,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-15T18:14:54.505883",
@@ -398,6 +398,6 @@
         "time": "2026-06-15T18:20:26.575139"
       }
     ],
-    "last_analysis": "2026-06-15T18:19:55.325163"
+    "last_analysis": "2026-06-15T18:20:32.286782"
   }
 }
