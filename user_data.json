@@ -350,12 +350,16 @@
     "joined": "2026-06-15T07:39:54.796796",
     "watchlist": [],
     "pending_sol_payment": null,
-    "last_active": "2026-06-15T07:39:54.796789",
+    "last_active": "2026-06-15T07:40:14.542529",
     "username": "\ud83d\udc09\ud83d\udc09",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-15T07:39:54.796789"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-15T07:40:14.542529"
       }
     ]
   }
