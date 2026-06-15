@@ -1,11 +1,11 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v5.2
+kodark.io - Solana Memecoins Analyzer Bot v5.5
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
 Smart Money Wallet Tracker | Daily Market Summary | Trending Top 10
 Token Watchlist | Alerts Hub | Dark Theme UI
 Free Tier (3 analyses + 3 alarms) | Feedback System
-Telegram Stars Payment System
+Telegram Stars + SOL Payment System | Admin Premium Toggle
 """
 
 import os
