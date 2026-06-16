@@ -75,7 +75,8 @@
         "2121285435"
       ],
       "2026-06-16": [
-        "6321353739"
+        "6321353739",
+        "5660570397"
       ]
     }
   },
@@ -417,6 +418,23 @@
       {
         "type": "visit",
         "time": "2026-06-16T05:05:15.536096"
+      }
+    ]
+  },
+  "5660570397": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T08:19:06.782989",
+    "watchlist": [],
+    "last_active": "2026-06-16T08:19:06.782983",
+    "username": "Jujisite1",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T08:19:06.782983"
       }
     ]
   }
