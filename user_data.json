@@ -815,12 +815,16 @@
     "paid_premium": false,
     "joined": "2026-06-16T13:41:46.603182",
     "watchlist": [],
-    "last_active": "2026-06-16T13:41:46.603176",
+    "last_active": "2026-06-16T13:43:14.372890",
     "username": "Salim",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-16T13:41:46.603176"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T13:43:14.372890"
       }
     ]
   }
