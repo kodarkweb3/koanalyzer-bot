@@ -664,7 +664,14 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T12:03:27.578278",
-    "watchlist": [],
+    "watchlist": [
+      {
+        "address": "H2cxSwXWvfHSNubCz3nTe8np2Jx9rRETYn6Cqicrpump",
+        "symbol": "bully",
+        "name": "bully",
+        "added": "2026-06-16T12:07:20.081749"
+      }
+    ],
     "last_active": "2026-06-16T12:05:27.662202",
     "username": "Ebrahimjr",
     "activity_log": [
