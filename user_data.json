@@ -89,7 +89,8 @@
         "7043191251",
         "7087143397",
         "8863927449",
-        "6494646678"
+        "6494646678",
+        "7147421495"
       ]
     }
   },
@@ -685,5 +686,22 @@
       }
     ],
     "last_analysis": "2026-06-16T12:05:26.882403"
+  },
+  "7147421495": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T12:06:51.933796",
+    "watchlist": [],
+    "last_active": "2026-06-16T12:06:51.933790",
+    "username": "mustaphaaikawa",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T12:06:51.933790"
+      }
+    ]
   }
 }
