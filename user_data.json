@@ -583,7 +583,7 @@
   "7043191251": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T11:23:26.153052",
@@ -603,6 +603,7 @@
         "type": "message",
         "time": "2026-06-16T11:24:01.767175"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-16T11:24:17.514335"
   }
 }
