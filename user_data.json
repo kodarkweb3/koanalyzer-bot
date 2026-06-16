@@ -724,7 +724,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T12:10:38.128702",
     "watchlist": [],
-    "last_active": "2026-06-16T12:11:10.931045",
+    "last_active": "2026-06-16T12:11:12.132838",
     "username": "Abdallahalhajiabba",
     "activity_log": [
       {
@@ -734,6 +734,10 @@
       {
         "type": "message",
         "time": "2026-06-16T12:11:10.931045"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T12:11:12.132838"
       }
     ]
   }
