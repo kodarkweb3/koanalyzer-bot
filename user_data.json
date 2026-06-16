@@ -86,7 +86,8 @@
         "5741624544",
         "8921438838",
         "2043981845",
-        "7043191251"
+        "7043191251",
+        "7087143397"
       ]
     }
   },
@@ -609,5 +610,22 @@
       }
     ],
     "last_analysis": "2026-06-16T11:24:17.514335"
+  },
+  "7087143397": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T11:30:06.490841",
+    "watchlist": [],
+    "last_active": "2026-06-16T11:30:06.490836",
+    "username": "salimyahaya",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T11:30:06.490836"
+      }
+    ]
   }
 }
