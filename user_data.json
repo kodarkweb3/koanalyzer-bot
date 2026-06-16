@@ -73,6 +73,9 @@
         "6309947854",
         "2043981845",
         "2121285435"
+      ],
+      "2026-06-16": [
+        "6321353739"
       ]
     }
   },
@@ -399,5 +402,22 @@
       }
     ],
     "last_analysis": "2026-06-15T18:20:32.286782"
+  },
+  "6321353739": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T05:05:15.536103",
+    "watchlist": [],
+    "last_active": "2026-06-16T05:05:15.536096",
+    "username": "ridwaanahmed",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T05:05:15.536096"
+      }
+    ]
   }
 }
