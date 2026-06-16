@@ -494,7 +494,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T11:17:17.149024",
     "watchlist": [],
-    "last_active": "2026-06-16T11:18:15.563627",
+    "last_active": "2026-06-16T11:18:17.455975",
     "username": "Mustapha",
     "activity_log": [
       {
@@ -504,6 +504,10 @@
       {
         "type": "message",
         "time": "2026-06-16T11:18:15.563627"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T11:18:17.455975"
       }
     ]
   },
