@@ -94,7 +94,8 @@
         "7065607951",
         "7007975789",
         "5806298068",
-        "8665175861"
+        "8665175861",
+        "7880076765"
       ]
     }
   },
@@ -839,5 +840,22 @@
       }
     ],
     "last_analysis": "2026-06-16T13:43:52.084307"
+  },
+  "7880076765": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T13:59:22.109815",
+    "watchlist": [],
+    "last_active": "2026-06-16T13:59:22.109809",
+    "username": "Gainakoh",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T13:59:22.109809"
+      }
+    ]
   }
 }
