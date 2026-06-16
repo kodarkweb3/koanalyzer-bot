@@ -625,7 +625,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T11:30:06.490841",
     "watchlist": [],
-    "last_active": "2026-06-16T13:36:49.912168",
+    "last_active": "2026-06-16T13:36:50.827583",
     "username": "salimyahaya",
     "activity_log": [
       {
@@ -635,6 +635,10 @@
       {
         "type": "message",
         "time": "2026-06-16T13:36:49.912168"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T13:36:50.827583"
       }
     ]
   },
