@@ -814,7 +814,14 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T13:41:46.603182",
-    "watchlist": [],
+    "watchlist": [
+      {
+        "address": "EQHgekT3TAyNqXmENfgbexxzBj6rQzXV6n5nEM89pump",
+        "symbol": "STEAK",
+        "name": "Steak",
+        "added": "2026-06-16T13:45:35.499808"
+      }
+    ],
     "last_active": "2026-06-16T13:43:53.084445",
     "username": "Salim",
     "activity_log": [
