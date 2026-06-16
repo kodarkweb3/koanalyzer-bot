@@ -664,12 +664,16 @@
     "paid_premium": false,
     "joined": "2026-06-16T12:03:27.578278",
     "watchlist": [],
-    "last_active": "2026-06-16T12:03:27.578273",
+    "last_active": "2026-06-16T12:04:26.452040",
     "username": "Ebrahimjr",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-16T12:03:27.578273"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T12:04:26.452040"
       }
     ]
   }
