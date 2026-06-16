@@ -80,7 +80,8 @@
         "5660570397",
         "2121285435",
         "6954921492",
-        "487592888"
+        "487592888",
+        "5510162418"
       ]
     }
   },
@@ -481,6 +482,23 @@
       {
         "type": "message",
         "time": "2026-06-16T11:15:35.673239"
+      }
+    ]
+  },
+  "5510162418": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T11:17:17.149024",
+    "watchlist": [],
+    "last_active": "2026-06-16T11:17:17.149018",
+    "username": "Mustapha",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T11:17:17.149018"
       }
     ]
   }
