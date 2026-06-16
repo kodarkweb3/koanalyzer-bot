@@ -637,12 +637,16 @@
     "paid_premium": false,
     "joined": "2026-06-16T11:33:01.502850",
     "watchlist": [],
-    "last_active": "2026-06-16T11:33:01.502844",
+    "last_active": "2026-06-16T11:34:31.389706",
     "username": "NAFSON\ud83e\udee5",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-16T11:33:01.502844"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T11:34:31.389706"
       }
     ]
   }
