@@ -588,7 +588,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T11:23:26.153052",
     "watchlist": [],
-    "last_active": "2026-06-16T11:23:59.679918",
+    "last_active": "2026-06-16T11:24:01.767175",
     "username": "Abubakar917",
     "activity_log": [
       {
@@ -598,6 +598,10 @@
       {
         "type": "message",
         "time": "2026-06-16T11:23:59.679918"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T11:24:01.767175"
       }
     ]
   }
