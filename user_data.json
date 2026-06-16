@@ -91,7 +91,8 @@
         "8863927449",
         "6494646678",
         "7147421495",
-        "7065607951"
+        "7065607951",
+        "7007975789"
       ]
     }
   },
@@ -749,5 +750,22 @@
       }
     ],
     "last_analysis": "2026-06-16T12:18:38.357511"
+  },
+  "7007975789": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T12:40:19.568380",
+    "watchlist": [],
+    "last_active": "2026-06-16T12:40:19.568373",
+    "username": "yusufahhisa",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T12:40:19.568373"
+      }
+    ]
   }
 }
