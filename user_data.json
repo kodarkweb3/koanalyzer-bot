@@ -724,13 +724,9 @@
     "paid_premium": false,
     "joined": "2026-06-16T12:10:38.128702",
     "watchlist": [],
-    "last_active": "2026-06-16T12:15:37.336389",
+    "last_active": "2026-06-16T12:17:43.559592",
     "username": "Abdallahalhajiabba",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-16T12:11:10.931045"
-      },
       {
         "type": "message",
         "time": "2026-06-16T12:11:12.132838"
@@ -746,6 +742,10 @@
       {
         "type": "message",
         "time": "2026-06-16T12:15:37.336389"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T12:17:43.559592"
       }
     ],
     "last_analysis": "2026-06-16T12:11:34.295886"
