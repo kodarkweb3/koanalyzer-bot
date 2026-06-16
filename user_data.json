@@ -471,12 +471,16 @@
     "paid_premium": false,
     "joined": "2026-06-16T11:14:04.538450",
     "watchlist": [],
-    "last_active": "2026-06-16T11:14:04.538442",
+    "last_active": "2026-06-16T11:15:35.673239",
     "username": "inusam",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-16T11:14:04.538442"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T11:15:35.673239"
       }
     ]
   }
