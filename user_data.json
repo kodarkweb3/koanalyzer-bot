@@ -437,13 +437,9 @@
     "paid_premium": false,
     "joined": "2026-06-16T08:19:06.782989",
     "watchlist": [],
-    "last_active": "2026-06-16T11:06:52.117516",
+    "last_active": "2026-06-16T11:14:53.862574",
     "username": "Jujisite1",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-16T08:34:18.916365"
-      },
       {
         "type": "analysis",
         "time": "2026-06-16T08:34:25.485438"
@@ -459,6 +455,10 @@
       {
         "type": "analysis",
         "time": "2026-06-16T11:06:52.117516"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T11:14:53.862574"
       }
     ],
     "last_analysis": "2026-06-16T11:06:50.198793"
