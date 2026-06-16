@@ -810,7 +810,7 @@
   "8665175861": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T13:41:46.603182",
@@ -826,6 +826,7 @@
         "type": "message",
         "time": "2026-06-16T13:43:14.372890"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-16T13:43:52.084307"
   }
 }
