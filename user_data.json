@@ -97,7 +97,8 @@
         "8665175861",
         "7880076765",
         "6370032519",
-        "5510775132"
+        "5510775132",
+        "2058483771"
       ]
     }
   },
@@ -903,6 +904,23 @@
       {
         "type": "visit",
         "time": "2026-06-16T19:27:32.005287"
+      }
+    ]
+  },
+  "2058483771": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T20:09:35.307487",
+    "watchlist": [],
+    "last_active": "2026-06-16T20:09:35.307480",
+    "username": "Ussy_crypto",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T20:09:35.307480"
       }
     ]
   }
