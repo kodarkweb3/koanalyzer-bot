@@ -78,7 +78,8 @@
       "2026-06-16": [
         "6321353739",
         "5660570397",
-        "2121285435"
+        "2121285435",
+        "6954921492"
       ]
     }
   },
@@ -456,5 +457,22 @@
       }
     ],
     "last_analysis": "2026-06-16T11:06:50.198793"
+  },
+  "6954921492": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T11:14:04.538450",
+    "watchlist": [],
+    "last_active": "2026-06-16T11:14:04.538442",
+    "username": "inusam",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T11:14:04.538442"
+      }
+    ]
   }
 }
