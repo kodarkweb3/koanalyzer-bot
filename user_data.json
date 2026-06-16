@@ -659,7 +659,7 @@
   "6494646678": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T12:03:27.578278",
@@ -679,6 +679,7 @@
         "type": "message",
         "time": "2026-06-16T12:04:27.332196"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-16T12:05:26.882403"
   }
 }
