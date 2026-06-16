@@ -92,7 +92,8 @@
         "6494646678",
         "7147421495",
         "7065607951",
-        "7007975789"
+        "7007975789",
+        "5806298068"
       ]
     }
   },
@@ -777,6 +778,23 @@
       {
         "type": "message",
         "time": "2026-06-16T12:42:34.835895"
+      }
+    ]
+  },
+  "5806298068": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T13:29:25.034558",
+    "watchlist": [],
+    "last_active": "2026-06-16T13:29:25.034552",
+    "username": "defiluthrax",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T13:29:25.034552"
       }
     ]
   }
