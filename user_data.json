@@ -95,7 +95,8 @@
         "7007975789",
         "5806298068",
         "8665175861",
-        "7880076765"
+        "7880076765",
+        "6370032519"
       ]
     }
   },
@@ -863,6 +864,23 @@
       {
         "type": "message",
         "time": "2026-06-16T14:01:23.076689"
+      }
+    ]
+  },
+  "6370032519": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-16T15:08:01.553725",
+    "watchlist": [],
+    "last_active": "2026-06-16T15:08:01.553719",
+    "username": "Afreeen11111",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-16T15:08:01.553719"
       }
     ]
   }
