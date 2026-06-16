@@ -759,7 +759,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T12:40:19.568380",
     "watchlist": [],
-    "last_active": "2026-06-16T12:41:38.854758",
+    "last_active": "2026-06-16T12:42:33.791902",
     "username": "yusufahhisa",
     "activity_log": [
       {
@@ -769,6 +769,10 @@
       {
         "type": "message",
         "time": "2026-06-16T12:41:38.854758"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-16T12:42:33.791902"
       }
     ]
   }
