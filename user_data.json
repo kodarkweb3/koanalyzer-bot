@@ -632,7 +632,7 @@
   "8863927449": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-16T11:33:01.502850",
@@ -648,6 +648,7 @@
         "type": "message",
         "time": "2026-06-16T11:34:31.389706"
       }
-    ]
+    ],
+    "last_analysis": "2026-06-16T11:34:59.792312"
   }
 }
