@@ -860,7 +860,7 @@
     "premium": false,
     "premium_until": null,
     "analysis_count": 0,
-    "alarm_count": 0,
+    "alarm_count": 1,
     "paid_premium": false,
     "joined": "2026-06-16T13:59:22.109815",
     "watchlist": [],
