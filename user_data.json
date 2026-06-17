@@ -975,12 +975,16 @@
     "paid_premium": false,
     "joined": "2026-06-17T21:56:10.549397",
     "watchlist": [],
-    "last_active": "2026-06-17T21:56:10.549388",
+    "last_active": "2026-06-17T21:56:39.906431",
     "username": "prozof",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-17T21:56:10.549388"
+      },
+      {
+        "type": "visit",
+        "time": "2026-06-17T21:56:39.906431"
       }
     ]
   }
