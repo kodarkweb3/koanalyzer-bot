@@ -99,6 +99,9 @@
         "6370032519",
         "5510775132",
         "2058483771"
+      ],
+      "2026-06-17": [
+        "5599490624"
       ]
     }
   },
@@ -921,6 +924,23 @@
       {
         "type": "visit",
         "time": "2026-06-16T20:09:35.307480"
+      }
+    ]
+  },
+  "5599490624": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-17T15:48:16.434378",
+    "watchlist": [],
+    "last_active": "2026-06-17T15:48:16.434371",
+    "username": "Yik08",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-17T15:48:16.434371"
       }
     ]
   }
