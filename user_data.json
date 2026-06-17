@@ -864,7 +864,7 @@
     "paid_premium": false,
     "joined": "2026-06-16T13:59:22.109815",
     "watchlist": [],
-    "last_active": "2026-06-17T16:24:02.381441",
+    "last_active": "2026-06-17T16:25:07.436727",
     "username": "Gainakoh",
     "activity_log": [
       {
@@ -882,6 +882,10 @@
       {
         "type": "message",
         "time": "2026-06-17T16:24:02.381441"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-17T16:25:07.436727"
       }
     ]
   },
