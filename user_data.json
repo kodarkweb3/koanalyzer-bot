@@ -1001,12 +1001,16 @@
     "paid_premium": false,
     "joined": "2026-06-18T12:00:00.339882",
     "watchlist": [],
-    "last_active": "2026-06-18T12:00:00.339874",
+    "last_active": "2026-06-18T12:00:38.794557",
     "username": "Kelvin_170504",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-18T12:00:00.339874"
+      },
+      {
+        "type": "visit",
+        "time": "2026-06-18T12:00:38.794557"
       }
     ]
   }
