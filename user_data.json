@@ -109,7 +109,8 @@
       ],
       "2026-06-18": [
         "2043981845",
-        "8410572896"
+        "8410572896",
+        "1087968824"
       ]
     }
   },
@@ -1015,6 +1016,23 @@
       {
         "type": "visit",
         "time": "2026-06-18T12:01:19.164481"
+      }
+    ]
+  },
+  "1087968824": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-18T19:02:41.705214",
+    "watchlist": [],
+    "last_active": "2026-06-18T19:02:41.705207",
+    "username": "GroupAnonymousBot",
+    "activity_log": [
+      {
+        "type": "message",
+        "time": "2026-06-18T19:02:41.705207"
       }
     ]
   }
