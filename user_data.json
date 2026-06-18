@@ -108,7 +108,8 @@
         "1176848909"
       ],
       "2026-06-18": [
-        "2043981845"
+        "2043981845",
+        "8410572896"
       ]
     }
   },
@@ -989,6 +990,23 @@
       {
         "type": "visit",
         "time": "2026-06-17T21:56:39.906431"
+      }
+    ]
+  },
+  "8410572896": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-18T12:00:00.339882",
+    "watchlist": [],
+    "last_active": "2026-06-18T12:00:00.339874",
+    "username": "Kelvin_170504",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-18T12:00:00.339874"
       }
     ]
   }
