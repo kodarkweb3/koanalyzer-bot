@@ -1049,7 +1049,7 @@
   "1482228362": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 1,
+    "analysis_count": 2,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-20T12:14:26.301441",
@@ -1078,6 +1078,6 @@
         "time": "2026-06-20T12:19:44.694937"
       }
     ],
-    "last_analysis": "2026-06-20T12:14:43.484698"
+    "last_analysis": "2026-06-20T12:19:52.204804"
   }
 }
