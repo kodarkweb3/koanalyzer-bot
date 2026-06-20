@@ -1054,7 +1054,7 @@
     "paid_premium": false,
     "joined": "2026-06-20T12:14:26.301441",
     "watchlist": [],
-    "last_active": "2026-06-20T12:14:44.383416",
+    "last_active": "2026-06-20T12:19:43.856872",
     "username": "simple_kiddy",
     "activity_log": [
       {
@@ -1072,6 +1072,10 @@
       {
         "type": "analysis",
         "time": "2026-06-20T12:14:44.383416"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-20T12:19:43.856872"
       }
     ],
     "last_analysis": "2026-06-20T12:14:43.484698"
