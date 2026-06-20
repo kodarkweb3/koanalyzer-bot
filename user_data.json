@@ -117,6 +117,9 @@
         "6494646678",
         "2043981845",
         "7880076765"
+      ],
+      "2026-06-20": [
+        "1482228362"
       ]
     }
   },
@@ -1039,6 +1042,23 @@
       {
         "type": "message",
         "time": "2026-06-18T19:02:41.705207"
+      }
+    ]
+  },
+  "1482228362": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-20T12:14:26.301441",
+    "watchlist": [],
+    "last_active": "2026-06-20T12:14:26.301435",
+    "username": "simple_kiddy",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-20T12:14:26.301435"
       }
     ]
   }
