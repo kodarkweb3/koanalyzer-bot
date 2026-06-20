@@ -1054,13 +1054,9 @@
     "paid_premium": false,
     "joined": "2026-06-20T12:14:26.301441",
     "watchlist": [],
-    "last_active": "2026-06-20T12:19:43.856872",
+    "last_active": "2026-06-20T12:19:44.694937",
     "username": "simple_kiddy",
     "activity_log": [
-      {
-        "type": "visit",
-        "time": "2026-06-20T12:14:26.301435"
-      },
       {
         "type": "message",
         "time": "2026-06-20T12:14:32.932490"
@@ -1076,6 +1072,10 @@
       {
         "type": "message",
         "time": "2026-06-20T12:19:43.856872"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-20T12:19:44.694937"
       }
     ],
     "last_analysis": "2026-06-20T12:14:43.484698"
