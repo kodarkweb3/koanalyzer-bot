@@ -123,6 +123,9 @@
         "1482228362",
         "1087968824",
         "7087143397"
+      ],
+      "2026-06-21": [
+        "8845616745"
       ]
     }
   },
@@ -1090,5 +1093,22 @@
       }
     ],
     "last_analysis": "2026-06-20T12:19:52.204804"
+  },
+  "8845616745": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-21T04:14:37.897985",
+    "watchlist": [],
+    "last_active": "2026-06-21T04:14:37.897979",
+    "username": "Alexandra",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-21T04:14:37.897979"
+      }
+    ]
   }
 }
