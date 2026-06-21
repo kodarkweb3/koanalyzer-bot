@@ -128,7 +128,8 @@
         "8845616745",
         "1498683627",
         "7090168005",
-        "5660570397"
+        "5660570397",
+        "1732179639"
       ]
     }
   },
@@ -1149,6 +1150,23 @@
       {
         "type": "visit",
         "time": "2026-06-21T13:08:34.949108"
+      }
+    ]
+  },
+  "1732179639": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-21T15:27:29.005357",
+    "watchlist": [],
+    "last_active": "2026-06-21T15:27:29.005348",
+    "username": "Otsetswecaptainjamesmaluke",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-21T15:27:29.005348"
       }
     ]
   }
