@@ -130,7 +130,8 @@
         "7090168005",
         "5660570397",
         "1732179639",
-        "6017880232"
+        "6017880232",
+        "7145842711"
       ]
     }
   },
@@ -1185,6 +1186,23 @@
       {
         "type": "visit",
         "time": "2026-06-21T15:29:56.069917"
+      }
+    ]
+  },
+  "7145842711": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-21T17:05:33.419123",
+    "watchlist": [],
+    "last_active": "2026-06-21T17:05:33.419117",
+    "username": "Joshweb2477",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-21T17:05:33.419117"
       }
     ]
   }
