@@ -129,7 +129,8 @@
         "1498683627",
         "7090168005",
         "5660570397",
-        "1732179639"
+        "1732179639",
+        "6017880232"
       ]
     }
   },
@@ -1167,6 +1168,23 @@
       {
         "type": "visit",
         "time": "2026-06-21T15:27:29.005348"
+      }
+    ]
+  },
+  "6017880232": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-21T15:29:56.069923",
+    "watchlist": [],
+    "last_active": "2026-06-21T15:29:56.069917",
+    "username": "Dee_Orakle",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-21T15:29:56.069917"
       }
     ]
   }
