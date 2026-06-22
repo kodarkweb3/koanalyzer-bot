@@ -132,6 +132,9 @@
         "1732179639",
         "6017880232",
         "7145842711"
+      ],
+      "2026-06-22": [
+        "7400380224"
       ]
     }
   },
@@ -1207,6 +1210,23 @@
       {
         "type": "message",
         "time": "2026-06-21T17:06:09.831270"
+      }
+    ]
+  },
+  "7400380224": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-22T00:01:44.611572",
+    "watchlist": [],
+    "last_active": "2026-06-22T00:01:44.611564",
+    "username": "wrenleytrav_88",
+    "activity_log": [
+      {
+        "type": "message",
+        "time": "2026-06-22T00:01:44.611564"
       }
     ]
   }
