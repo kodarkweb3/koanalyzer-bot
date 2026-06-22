@@ -136,7 +136,8 @@
       ],
       "2026-06-22": [
         "7400380224",
-        "6017880232"
+        "6017880232",
+        "8311226870"
       ]
     }
   },
@@ -1238,6 +1239,23 @@
       {
         "type": "message",
         "time": "2026-06-22T00:01:44.611564"
+      }
+    ]
+  },
+  "8311226870": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-22T10:08:58.906344",
+    "watchlist": [],
+    "last_active": "2026-06-22T10:08:58.906338",
+    "username": "donniesworlds",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-22T10:08:58.906338"
       }
     ]
   }
