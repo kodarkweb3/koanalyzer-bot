@@ -1186,8 +1186,8 @@
     ]
   },
   "6017880232": {
-    "premium": false,
-    "premium_until": null,
+    "premium": true,
+    "premium_until": "2026-07-23T10:55:48.517777",
     "analysis_count": 2,
     "alarm_count": 0,
     "paid_premium": false,
