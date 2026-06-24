@@ -1334,12 +1334,16 @@
     "paid_premium": false,
     "joined": "2026-06-24T20:15:02.317528",
     "watchlist": [],
-    "last_active": "2026-06-24T20:15:02.317520",
+    "last_active": "2026-06-24T20:16:13.276324",
     "username": "\u041b\u0435\u0445\u0430",
     "activity_log": [
       {
         "type": "message",
         "time": "2026-06-24T20:15:02.317520"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-24T20:16:13.276324"
       }
     ]
   }
