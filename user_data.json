@@ -147,7 +147,8 @@
         "2043981845"
       ],
       "2026-06-24": [
-        "6782720839"
+        "6782720839",
+        "8976346970"
       ]
     }
   },
@@ -1322,6 +1323,23 @@
       {
         "type": "visit",
         "time": "2026-06-24T12:52:15.381562"
+      }
+    ]
+  },
+  "8976346970": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-24T20:15:02.317528",
+    "watchlist": [],
+    "last_active": "2026-06-24T20:15:02.317520",
+    "username": "\u041b\u0435\u0445\u0430",
+    "activity_log": [
+      {
+        "type": "message",
+        "time": "2026-06-24T20:15:02.317520"
       }
     ]
   }
