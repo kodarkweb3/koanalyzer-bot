@@ -151,7 +151,8 @@
         "8976346970"
       ],
       "2026-06-25": [
-        "7689528702"
+        "7689528702",
+        "1532848382"
       ]
     }
   },
@@ -1380,6 +1381,23 @@
       {
         "type": "message",
         "time": "2026-06-25T00:59:37.253483"
+      }
+    ]
+  },
+  "1532848382": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-25T03:48:15.005332",
+    "watchlist": [],
+    "last_active": "2026-06-25T03:48:15.005323",
+    "username": "susudele",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-06-25T03:48:15.005323"
       }
     ]
   }
