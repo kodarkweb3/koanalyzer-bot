@@ -1411,12 +1411,16 @@
     "paid_premium": false,
     "joined": "2026-06-25T21:56:22.053404",
     "watchlist": [],
-    "last_active": "2026-06-25T21:56:22.053395",
+    "last_active": "2026-06-25T21:56:28.789525",
     "username": "Bozzmovez",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-06-25T21:56:22.053395"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-25T21:56:28.789525"
       }
     ]
   }
