@@ -158,6 +158,9 @@
       ],
       "2026-06-26": [
         "7949582751"
+      ],
+      "2026-06-27": [
+        "7791483699"
       ]
     }
   },
@@ -1445,6 +1448,23 @@
       {
         "type": "visit",
         "time": "2026-06-26T10:14:05.088918"
+      }
+    ]
+  },
+  "7791483699": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-06-27T00:02:07.522679",
+    "watchlist": [],
+    "last_active": "2026-06-27T00:02:07.522669",
+    "username": "aurora_zenith000",
+    "activity_log": [
+      {
+        "type": "message",
+        "time": "2026-06-27T00:02:07.522669"
       }
     ]
   }
