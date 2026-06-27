@@ -933,13 +933,9 @@
     "paid_premium": false,
     "joined": "2026-06-16T13:59:22.109815",
     "watchlist": [],
-    "last_active": "2026-06-27T19:32:44.571895",
+    "last_active": "2026-06-27T19:32:45.559371",
     "username": "Gainakoh",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-19T19:25:10.685703"
-      },
       {
         "type": "message",
         "time": "2026-06-19T19:25:11.554603"
@@ -955,6 +951,10 @@
       {
         "type": "message",
         "time": "2026-06-27T19:32:44.571895"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-27T19:32:45.559371"
       }
     ]
   },
