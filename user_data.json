@@ -472,13 +472,9 @@
     "paid_premium": false,
     "joined": "2026-06-15T18:14:54.505883",
     "watchlist": [],
-    "last_active": "2026-06-29T15:12:24.945086",
+    "last_active": "2026-06-29T15:12:41.895362",
     "username": "X0mhdxc",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-15T18:20:26.575139"
-      },
       {
         "type": "analysis",
         "time": "2026-06-15T18:20:33.376014"
@@ -494,6 +490,10 @@
       {
         "type": "message",
         "time": "2026-06-29T15:12:24.945086"
+      },
+      {
+        "type": "message",
+        "time": "2026-06-29T15:12:41.895362"
       }
     ],
     "last_analysis": "2026-06-15T18:20:32.286782"
