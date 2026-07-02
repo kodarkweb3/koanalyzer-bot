@@ -1608,12 +1608,16 @@
     "paid_premium": false,
     "joined": "2026-07-02T10:21:24.327178",
     "watchlist": [],
-    "last_active": "2026-07-02T10:21:24.327172",
+    "last_active": "2026-07-02T10:21:36.669288",
     "username": "Tomras61",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-07-02T10:21:24.327172"
+      },
+      {
+        "type": "message",
+        "time": "2026-07-02T10:21:36.669288"
       }
     ]
   }
