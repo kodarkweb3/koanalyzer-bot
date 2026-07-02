@@ -192,13 +192,9 @@
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T13:36:33.283642",
-    "last_active": "2026-07-02T13:39:53.832079",
+    "last_active": "2026-07-02T13:40:48.736833",
     "username": "javiQgomining",
     "activity_log": [
-      {
-        "type": "visit",
-        "time": "2026-06-11T13:36:33.283631"
-      },
       {
         "type": "message",
         "time": "2026-06-11T13:36:45.943721"
@@ -214,6 +210,10 @@
       {
         "type": "visit",
         "time": "2026-07-02T13:39:53.832079"
+      },
+      {
+        "type": "visit",
+        "time": "2026-07-02T13:40:48.736833"
       }
     ],
     "lang": "es",
