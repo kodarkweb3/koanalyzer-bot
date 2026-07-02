@@ -181,7 +181,8 @@
       ],
       "2026-07-02": [
         "1401679481",
-        "6646602626"
+        "6646602626",
+        "8372219798"
       ]
     }
   },
@@ -1639,5 +1640,22 @@
       }
     ],
     "last_analysis": "2026-07-02T10:41:15.804669"
+  },
+  "8372219798": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-07-02T22:26:12.158184",
+    "watchlist": [],
+    "last_active": "2026-07-02T22:26:12.158178",
+    "username": "Thak_bull",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-07-02T22:26:12.158178"
+      }
+    ]
   }
 }
