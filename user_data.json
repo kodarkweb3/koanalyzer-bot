@@ -1118,13 +1118,9 @@
     "paid_premium": false,
     "joined": "2026-06-18T19:02:41.705214",
     "watchlist": [],
-    "last_active": "2026-07-06T21:39:53.345686",
+    "last_active": "2026-07-06T21:39:54.175344",
     "username": "GroupAnonymousBot",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-06-27T18:36:09.301986"
-      },
       {
         "type": "message",
         "time": "2026-06-27T18:36:10.288561"
@@ -1140,6 +1136,10 @@
       {
         "type": "message",
         "time": "2026-07-06T21:39:53.345686"
+      },
+      {
+        "type": "message",
+        "time": "2026-07-06T21:39:54.175344"
       }
     ]
   },
