@@ -1676,7 +1676,7 @@
   "2091050048": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 1,
+    "analysis_count": 2,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-07-06T23:39:18.742852",
@@ -1705,7 +1705,7 @@
         "time": "2026-07-07T00:07:42.846225"
       }
     ],
-    "last_analysis": "2026-07-06T23:48:24.859827",
+    "last_analysis": "2026-07-07T00:07:56.486722",
     "lang": "ar"
   }
 }
