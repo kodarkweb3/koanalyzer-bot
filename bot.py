@@ -1,11 +1,12 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v5.5
+kodark.io - Solana Memecoins Analyzer Bot v5.6
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
 Smart Money Wallet Tracker | Daily Market Summary | Trending Top 10
 Token Watchlist | Alerts Hub | Dark Theme UI
 Free Tier (3 analyses + 3 alarms) | Feedback System
 Telegram Stars + SOL Payment System | Admin Premium Toggle
+Adsgram Rewarded Ads | @kodarkio Channel Auto-Post
 """
 
 import os
@@ -122,6 +123,13 @@ WALLET_CHECK_INTERVAL = 180  # seconds (3 minutes)
 # Daily Market Summary
 DAILY_SUMMARY_HOUR = 9  # UTC hour to send daily summary
 DAILY_SUMMARY_ENABLED = True
+
+# ==================== ADSGRAM & CHANNEL ====================
+ADSGRAM_BLOCK_ID = "bot-38106"
+TELEGRAM_CHANNEL = "@kodarkio"
+TELEGRAM_CHANNEL_URL = "https://t.me/kodarkio"
+AD_REWARD_ANALYSES = 1  # Extra free analyses per ad watched
+MAX_AD_REWARDS_PER_DAY = 3  # Max ad rewards per user per day
 
 # ==================== PERSISTENT DATA STORAGE ====================
 # Uses GitHub API to persist data across Railway redeployments.
@@ -334,6 +342,9 @@ def _new_user_record() -> dict:
         "paid_premium": False,
         "joined": datetime.now().isoformat(),
         "watchlist": [],  # Token watchlist [{"address": ..., "symbol": ..., "name": ..., "added": ...}]
+        "ad_bonus_analyses": 0,  # Extra analyses earned from watching ads
+        "ad_rewards_today": 0,  # Ad rewards claimed today
+        "ad_last_reward_date": None,  # Last date ad reward was claimed
     }
 
 
@@ -436,11 +447,15 @@ def get_free_usage(user_id: int) -> dict:
     user = data[user_str]
     analyses_used = user.get("analysis_count", 0)
     alarms_used = user.get("alarm_count", 0)
+    ad_bonus = user.get("ad_bonus_analyses", 0)  # Extra from ads
+
+    # Total free limit = base limit + ad bonus
+    total_free_limit = FREE_ANALYSIS_LIMIT + ad_bonus
 
     return {
         "analyses_used": analyses_used,
         "alarms_used": alarms_used,
-        "analyses_left": max(0, FREE_ANALYSIS_LIMIT - analyses_used),
+        "analyses_left": max(0, total_free_limit - analyses_used),
         "alarms_left": max(0, FREE_ALARM_LIMIT - alarms_used),
     }
 
@@ -482,6 +497,75 @@ def increment_alarm_count(user_id: int):
     if user_str in data:
         data[user_str]["alarm_count"] = data[user_str].get("alarm_count", 0) + 1
         save_user_data(data)
+
+
+# ==================== ADSGRAM AD REWARD ====================
+
+def grant_ad_reward(user_id: int) -> tuple:
+    """Grant ad reward to user. Returns (success: bool, message: str)."""
+    data = load_user_data()
+    user_str = str(user_id)
+    if user_str not in data:
+        data[user_str] = _new_user_record()
+
+    user = data[user_str]
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Reset daily counter if new day
+    if user.get("ad_last_reward_date") != today:
+        user["ad_rewards_today"] = 0
+        user["ad_last_reward_date"] = today
+
+    # Check daily limit
+    if user.get("ad_rewards_today", 0) >= MAX_AD_REWARDS_PER_DAY:
+        return (False, f"Daily ad reward limit reached ({MAX_AD_REWARDS_PER_DAY}/day). Try again tomorrow!")
+
+    # Grant bonus
+    user["ad_bonus_analyses"] = user.get("ad_bonus_analyses", 0) + AD_REWARD_ANALYSES
+    user["ad_rewards_today"] = user.get("ad_rewards_today", 0) + 1
+    user["ad_last_reward_date"] = today
+    data[user_str] = user
+    save_user_data(data)
+
+    total_bonus = user["ad_bonus_analyses"]
+    return (True, f"You earned +{AD_REWARD_ANALYSES} free analysis! (Total bonus: {total_bonus})")
+
+
+# ==================== CHANNEL AUTO-POST ====================
+
+async def post_analysis_to_channel(bot, token_data: dict, report: str):
+    """Post analysis summary to @kodarkio channel."""
+    try:
+        token_name = token_data.get("name", "Unknown")
+        token_symbol = token_data.get("symbol", "???")
+        price_usd = token_data.get("price_usd", "N/A")
+        mcap = float(token_data.get("market_cap", 0) or 0)
+        mcap_str = f"${mcap:,.0f}" if mcap > 0 else "N/A"
+
+        # Truncate report for channel (max 600 chars of analysis)
+        report_preview = report[:600]
+        if len(report) > 600:
+            report_preview += "..."
+
+        channel_text = (
+            f"\U0001f50d New Analysis: {token_name} (${token_symbol})\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n\n"
+            f"\U0001f4b0 Price: ${price_usd}\n"
+            f"\U0001f4ca Market Cap: {mcap_str}\n\n"
+            f"{report_preview}\n\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f916 Full analysis: @KoAnalyzerBot\n"
+            f"\U0001f4e2 Channel: {TELEGRAM_CHANNEL}"
+        )
+
+        await bot.send_message(
+            chat_id=TELEGRAM_CHANNEL,
+            text=channel_text,
+            disable_web_page_preview=True
+        )
+        logger.info(f"Channel post: {token_name} (${token_symbol})")
+    except Exception as e:
+        logger.warning(f"Channel post failed: {e}")
 
 
 # ==================== FEEDBACK SYSTEM ====================
@@ -1033,7 +1117,8 @@ def _check_analysis_access(user_id: int, lang: str = "en") -> str:
         f"🎯 Auto-Sniper alerts\n"
         f"📊 Advanced charts\n\n"
         f"💰 Plans starting from $18.49/month (SOL or Stars)\n\n"
-        f"👇 Tap below to choose payment method:"
+        f"📺 Or watch a short ad for +1 free analysis!\n\n"
+        f"👇 Choose an option below:"
     )
 
 
@@ -1106,7 +1191,8 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
         f"Sniper Alerts \U0001f3af: New token launch notifications from Pump .fun, Raydium, Jupiter\n\n"
         f"{status_line}\n\n"
         f"x.com/kodarkweb3\n"
-        f"x.com/kodarkio"
+        f"x.com/kodarkio\n"
+        f"\U0001f4e2 t.me/kodarkio"
     )
     return text
 
@@ -1123,6 +1209,7 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
         [InlineKeyboardButton("\U0001f310 Language", callback_data="language_menu")],
         [InlineKeyboardButton("\U0001f5fa Roadmap", callback_data="roadmap")],
         [InlineKeyboardButton("\U0001f4ac Feedback", callback_data="feedback_start")],
+        [InlineKeyboardButton("\U0001f4e2 Our Channel", url=TELEGRAM_CHANNEL_URL)],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -1134,8 +1221,31 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username or update.effective_user.first_name or "Unknown"
     record_user_activity(user_id, username, "visit")
     ensure_user(user_id)
-    premium = get_user_premium_status(user_id)
     lang = get_user_lang(user_id)
+
+    # Handle deep link: /start adreward (Adsgram ad reward)
+    if context.args and context.args[0] == "adreward":
+        premium = get_user_premium_status(user_id)
+        if premium["is_premium"]:
+            await update.message.reply_text(
+                "\u2705 You already have Premium! No need to watch ads.",
+                reply_markup=build_start_keyboard(True, lang),
+                disable_web_page_preview=True,
+            )
+            return
+
+        success, msg = grant_ad_reward(user_id)
+        emoji = "\U0001f381" if success else "\u26a0\ufe0f"
+        kb = build_start_keyboard(False, lang)
+        await update.message.reply_text(
+            f"{emoji} {msg}\n\n"
+            f"\U0001f50d Tap START ANALYZING to use your free analysis!",
+            reply_markup=kb,
+            disable_web_page_preview=True,
+        )
+        return
+
+    premium = get_user_premium_status(user_id)
     text = build_start_text(premium, lang, user_id)
     kb = build_start_keyboard(premium["is_premium"], lang)
     await update.message.reply_text(text, reply_markup=kb, disable_web_page_preview=True)
@@ -1920,6 +2030,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url=f"https://t.me/KoAnalyzerBot?start=adreward")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -1952,6 +2063,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url=f"https://t.me/KoAnalyzerBot?start=adreward")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2008,6 +2120,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=query.from_user.id, text="Analysis complete.", reply_markup=reply_markup, disable_web_page_preview=True)
             else:
                 await query.edit_message_text(report, reply_markup=reply_markup, disable_web_page_preview=True)
+
+            # Auto-post analysis summary to @kodarkio channel
+            await post_analysis_to_channel(context.bot, token_data, report)
 
         except Exception as e:
             logger.error(f"Analysis error: {e}")
@@ -3265,6 +3380,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url="https://t.me/KoAnalyzerBot?start=adreward")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -3335,6 +3451,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url="https://t.me/KoAnalyzerBot?start=adreward")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -3609,6 +3726,23 @@ async def background_daily_summary(app):
 
                 logger.info(f"Daily summary sent to {sent}/{len(subscribers)} subscribers.")
 
+                # Also post daily summary to @kodarkio channel
+                try:
+                    channel_summary = (
+                        f"{summary_text}\n\n"
+                        f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+                        f"\U0001f916 Analyze tokens: @KoAnalyzerBot\n"
+                        f"\U0001f4e2 Join: {TELEGRAM_CHANNEL}"
+                    )
+                    await app.bot.send_message(
+                        chat_id=TELEGRAM_CHANNEL,
+                        text=channel_summary,
+                        disable_web_page_preview=True
+                    )
+                    logger.info("Daily summary posted to channel.")
+                except Exception as ch_err:
+                    logger.warning(f"Channel daily summary post failed: {ch_err}")
+
         except Exception as e:
             logger.error(f"Background daily summary error: {e}")
 
@@ -3626,7 +3760,7 @@ async def post_init(app):
 # ==================== MAIN ====================
 
 def main():
-    logger.info("kodark.io Bot v5.1 starting...")
+    logger.info("kodark.io Bot v5.6 starting...")
 
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
@@ -3649,7 +3783,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    logger.info("Bot v5.2 started successfully! Polling...")
+    logger.info("Bot v5.6 started successfully! Polling...")
     app.run_polling(drop_pending_updates=True)
 
 
