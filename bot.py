@@ -112,8 +112,8 @@ STARS_PLANS = {
 # Campaign: Buy 1 Get 1 Free (SOL only)
 CAMPAIGN_BUY1_GET1 = True  # Admin can toggle this
 
-# Free tier limits
-FREE_ANALYSIS_LIMIT = 3
+# Free tier limits (0 = no free analyses, must watch ad)
+FREE_ANALYSIS_LIMIT = 0
 FREE_ALARM_LIMIT = 3
 
 # Smart Money Wallet Tracker limits
@@ -129,7 +129,7 @@ ADSGRAM_BLOCK_ID = "bot-38106"
 TELEGRAM_CHANNEL = "@kodarkio"
 TELEGRAM_CHANNEL_URL = "https://t.me/kodarkio"
 AD_REWARD_ANALYSES = 1  # Extra free analyses per ad watched
-MAX_AD_REWARDS_PER_DAY = 3  # Max ad rewards per user per day
+MAX_AD_REWARDS_PER_DAY = 1  # Max 1 ad reward per user per day (1 ad = 1 analysis)
 
 # ==================== PERSISTENT DATA STORAGE ====================
 # Uses GitHub API to persist data across Railway redeployments.
@@ -437,25 +437,36 @@ def activate_premium(user_id: int, days: int = 30):
 # ==================== FREE TIER TRACKING ====================
 
 def get_free_usage(user_id: int) -> dict:
-    """Get remaining free tier usage for a user."""
+    """Get remaining free tier usage for a user.
+    New system: 0 base free analyses. Users must watch 1 ad/day for 1 analysis.
+    ad_bonus_analyses tracks total earned, analysis_count tracks total used.
+    Daily reset: ad_bonus resets each day via grant_ad_reward.
+    """
     data = load_user_data()
     user_str = str(user_id)
     if user_str not in data:
         return {"analyses_used": 0, "alarms_used": 0,
-                "analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+                "analyses_left": 0, "alarms_left": FREE_ALARM_LIMIT}
 
     user = data[user_str]
-    analyses_used = user.get("analysis_count", 0)
     alarms_used = user.get("alarm_count", 0)
-    ad_bonus = user.get("ad_bonus_analyses", 0)  # Extra from ads
 
-    # Total free limit = base limit + ad bonus
-    total_free_limit = FREE_ANALYSIS_LIMIT + ad_bonus
+    # Daily ad-based system: check if user watched ad today
+    today = datetime.now().strftime("%Y-%m-%d")
+    ad_last_date = user.get("ad_last_reward_date", "")
+    ads_today = user.get("ad_rewards_today", 0) if ad_last_date == today else 0
+
+    # Check if user used their daily analysis today
+    last_analysis_date = user.get("last_analysis", "")
+    used_today = 1 if (last_analysis_date and last_analysis_date[:10] == today and ads_today > 0) else 0
+
+    # analyses_left: 1 if watched ad today and haven't used it yet, else 0
+    analyses_left = max(0, ads_today - used_today)
 
     return {
-        "analyses_used": analyses_used,
+        "analyses_used": user.get("analysis_count", 0),
         "alarms_used": alarms_used,
-        "analyses_left": max(0, total_free_limit - analyses_used),
+        "analyses_left": analyses_left,
         "alarms_left": max(0, FREE_ALARM_LIMIT - alarms_used),
     }
 
@@ -518,7 +529,7 @@ def grant_ad_reward(user_id: int) -> tuple:
 
     # Check daily limit
     if user.get("ad_rewards_today", 0) >= MAX_AD_REWARDS_PER_DAY:
-        return (False, f"Daily ad reward limit reached ({MAX_AD_REWARDS_PER_DAY}/day). Try again tomorrow!")
+        return (False, "You already used your daily free analysis. Come back tomorrow or upgrade to Premium!")
 
     # Grant bonus
     user["ad_bonus_analyses"] = user.get("ad_bonus_analyses", 0) + AD_REWARD_ANALYSES
@@ -527,8 +538,7 @@ def grant_ad_reward(user_id: int) -> tuple:
     data[user_str] = user
     save_user_data(data)
 
-    total_bonus = user["ad_bonus_analyses"]
-    return (True, f"You earned +{AD_REWARD_ANALYSES} free analysis! (Total bonus: {total_bonus})")
+    return (True, "You earned 1 free analysis for today! Use it wisely.")
 
 
 # ==================== CHANNEL AUTO-POST ====================
@@ -1092,6 +1102,113 @@ def get_admin_stats() -> dict:
     }
 
 
+# ==================== QUICK TOKEN SCORE & HOLDER ANALYSIS ====================
+
+def compute_quick_score(token_data: dict, rug_data: dict) -> str:
+    """Compute a quick token score and holder summary for the token found screen."""
+    try:
+        liquidity = float(token_data.get('liquidity_usd', 0) or 0)
+        mcap = float(token_data.get('market_cap', 0) or 0)
+        volume_24h = float(token_data.get('volume_24h', 0) or 0)
+        change_24h = float(token_data.get('price_change_24h', 0) or 0)
+        buys_24h = int(token_data.get('txns_buy_24h', 0) or 0)
+        sells_24h = int(token_data.get('txns_sell_24h', 0) or 0)
+
+        risk_level = rug_data.get('risk_level', 'UNKNOWN')
+        top10_pct = float(rug_data.get('total_top10_pct', 0) or 0)
+        insider_pct = float(rug_data.get('total_insider_pct', 0) or 0)
+        mint_auth = rug_data.get('mint_authority', None)
+        freeze_auth = rug_data.get('freeze_authority', None)
+
+        # Quick score calculation (1-10)
+        score = 5.0
+        mcap_liq_ratio = mcap / liquidity if liquidity > 0 else 999
+
+        # Liquidity
+        if liquidity >= 100000: score += 1.5
+        elif liquidity >= 30000: score += 0.5
+        elif liquidity < 5000: score -= 2
+
+        # Security
+        if risk_level == 'GOOD': score += 1.5
+        elif risk_level == 'BAD': score -= 1.5
+        elif risk_level == 'DANGER': score -= 3
+
+        if mint_auth: score -= 1
+        if freeze_auth: score -= 0.5
+        if insider_pct > 30: score -= 2
+        elif insider_pct > 15: score -= 1
+
+        # Volume & momentum
+        total_txns = buys_24h + sells_24h
+        buy_ratio = (buys_24h / total_txns * 100) if total_txns > 0 else 50
+        if buy_ratio > 55: score += 0.5
+        if change_24h > 10: score += 0.5
+        elif change_24h < -30: score -= 1
+
+        if mcap_liq_ratio > 20: score -= 1
+
+        score = max(1.0, min(10.0, round(score, 1)))
+
+        # Score emoji
+        if score >= 7: s_emoji = "\U0001f7e2"  # green
+        elif score >= 5: s_emoji = "\U0001f7e1"  # yellow
+        elif score >= 3: s_emoji = "\U0001f7e0"  # orange
+        else: s_emoji = "\U0001f534"  # red
+
+        # Holder analysis (simple)
+        if top10_pct > 80:
+            holder_status = "\U0001f534 Extremely Concentrated"
+        elif top10_pct > 50:
+            holder_status = "\U0001f7e0 Highly Concentrated"
+        elif top10_pct > 30:
+            holder_status = "\U0001f7e1 Moderately Concentrated"
+        else:
+            holder_status = "\U0001f7e2 Well Distributed"
+
+        # Security badge
+        if risk_level == 'GOOD':
+            sec_badge = "\U0001f7e2 Safe"
+        elif risk_level == 'WARN':
+            sec_badge = "\U0001f7e1 Caution"
+        elif risk_level == 'BAD':
+            sec_badge = "\U0001f7e0 Risky"
+        elif risk_level == 'DANGER':
+            sec_badge = "\U0001f534 Dangerous"
+        else:
+            sec_badge = "\u26aa Unknown"
+
+        # Build summary text
+        liq_str = f"${liquidity:,.0f}" if liquidity > 0 else "N/A"
+        insider_str = f"{insider_pct:.1f}%" if insider_pct > 0 else "0%"
+
+        summary = (
+            f"\n\n{s_emoji} Quick Score: {score}/10\n"
+            f"\U0001f6e1 Security: {sec_badge}\n"
+            f"\U0001f4a7 Liquidity: {liq_str}\n"
+            f"\U0001f465 Top 10 Holders: {top10_pct:.1f}% {holder_status}\n"
+            f"\U0001f575 Insider Holdings: {insider_str}"
+        )
+
+        # Warnings
+        warnings = []
+        if mint_auth:
+            warnings.append("\U0001f6a9 Mint Authority Active")
+        if freeze_auth:
+            warnings.append("\U0001f6a9 Freeze Authority Active")
+        if insider_pct > 20:
+            warnings.append(f"\u26a0\ufe0f High Insider %")
+
+        if warnings:
+            summary += "\n" + " | ".join(warnings)
+
+        return summary
+
+    except Exception as e:
+        logger.error(f"Quick score error: {e}")
+        return ""
+
+
 # ==================== ACCESS CHECK ====================
 
 def _check_analysis_access(user_id: int, lang: str = "en") -> str:
@@ -1104,12 +1221,12 @@ def _check_analysis_access(user_id: int, lang: str = "en") -> str:
     if usage["analyses_left"] > 0:
         return ""
 
-    # Free tier exhausted
+    # No free analyses - must watch ad or buy premium
     return (
-        f"🔒 Free Analyses Used Up\n\n"
-        f"You have used all {FREE_ANALYSIS_LIMIT} free analyses.\n\n"
-        f"💎 Upgrade to Premium for unlimited access!\n\n"
-        f"Premium includes:\n"
+        f"🔒 Analysis Locked\n\n"
+        f"Watch a short ad to unlock 1 free analysis (1/day)\n"
+        f"or upgrade to Premium for unlimited access!\n\n"
+        f"💎 Premium includes:\n"
         f"🔍 Unlimited token analysis\n"
         f"🤖 AI-powered reports\n"
         f"🐋 Whale tracking & alerts\n"
@@ -1117,7 +1234,6 @@ def _check_analysis_access(user_id: int, lang: str = "en") -> str:
         f"🎯 Auto-Sniper alerts\n"
         f"📊 Advanced charts\n\n"
         f"💰 Plans starting from $18.49/month (SOL or Stars)\n\n"
-        f"📺 Or watch a short ad for +1 free analysis!\n\n"
         f"👇 Choose an option below:"
     )
 
@@ -1150,8 +1266,8 @@ def _check_premium_only(user_id: int, feature: str = "This feature") -> str:
     return (
         f"🔒 Premium Feature\n\n"
         f"{feature} is only available for Premium subscribers.\n\n"
-        f"Free users get:\n"
-        f"🔍 {FREE_ANALYSIS_LIMIT} token analyses\n"
+        f"Free users can:\n"
+        f"📺 Watch 1 ad/day for 1 free analysis\n"
         f"⏰ {FREE_ALARM_LIMIT} price alarms\n\n"
         f"💎 Upgrade to Premium to unlock everything!\n\n"
         f"💰 Plans starting from $18.49/month (SOL or Stars)\n\n"
@@ -1168,10 +1284,13 @@ def build_start_text(premium: dict, lang: str = "en", user_id: int = None) -> st
         else:
             status_line = f"\u2705 Premium Status: Active ({premium['remaining']} left)"
     else:
-        usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+        usage = get_free_usage(user_id) if user_id else {"analyses_left": 0, "alarms_left": FREE_ALARM_LIMIT}
+        analyses_left = usage['analyses_left']
         status_line = (
             f"Premium Status: Inactive\n"
-            f"Free: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT} analyses | {usage['alarms_left']}/{FREE_ALARM_LIMIT} alarms"
+            f"📺 Watch an ad to unlock 1 daily analysis" if analyses_left == 0 else
+            f"Premium Status: Inactive\n"
+            f"✅ You have {analyses_left} analysis available today"
         )
 
     text = (
@@ -1239,7 +1358,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = build_start_keyboard(False, lang)
         await update.message.reply_text(
             f"{emoji} {msg}\n\n"
-            f"\U0001f50d Tap START ANALYZING to use your free analysis!",
+            f"\U0001f50d Tap START ANALYZING to use your analysis!",
             reply_markup=kb,
             disable_web_page_preview=True,
         )
@@ -1267,7 +1386,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "1. Tap START ANALYZING\n"
         "2. Enter a Solana memecoin address\n"
         "3. Choose: Analysis, Chart, Price Alarm, or Whale Alert\n\n"
-        f"Free Tier: {FREE_ANALYSIS_LIMIT} analyses + {FREE_ALARM_LIMIT} price alarms\n"
+        f"Free: Watch 1 ad/day = 1 analysis | {FREE_ALARM_LIMIT} price alarms\n"
         f"Premium: from $18.49/month for unlimited access\n\n"
         "x.com/kodarkweb3\n"
         "x.com/kodarkio"
@@ -1322,15 +1441,17 @@ def _build_premium_text(premium: dict, user_id: int = None) -> str:
                 f"before the expiry date to keep access."
             )
     else:
-        usage = get_free_usage(user_id) if user_id else {"analyses_left": FREE_ANALYSIS_LIMIT, "alarms_left": FREE_ALARM_LIMIT}
+        usage = get_free_usage(user_id) if user_id else {"analyses_left": 0, "alarms_left": FREE_ALARM_LIMIT}
         campaign_text = ""
         if CAMPAIGN_BUY1_GET1:
             campaign_text = "\n\U0001f381 CAMPAIGN: Buy 1 Month, Get 1 FREE! (SOL only)\n"
+        analyses_left = usage['analyses_left']
+        ad_status = f"\u2705 You have {analyses_left} analysis available today" if analyses_left > 0 else "\U0001f4fa Watch 1 ad = 1 free analysis (1/day)"
         return (
             f"\U0001f48e PREMIUM STATUS\n\n"
             f"\u274c Status: Inactive\n\n"
-            f"\U0001f193 Free Tier Remaining:\n"
-            f"\U0001f50d Analyses: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
+            f"\U0001f193 Free Access:\n"
+            f"{ad_status}\n"
             f"\u23f0 Alarms: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n\n"
             f"\U0001f512 Premium features include:\n"
             f"\U0001f50d Unlimited token analysis\n"
@@ -1964,7 +2085,7 @@ async def welcome_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "👋 Welcome to kodark.io!\n\n"
             "🚀 The ultimate Solana memecoin analyzer.\n\n"
-            f"🆓 Start with {FREE_ANALYSIS_LIMIT} free analyses + {FREE_ALARM_LIMIT} free alarms!\n\n"
+            f"📺 Watch 1 ad/day to unlock a free analysis!\n\n"
             "👉 Type /start to begin!",
             disable_web_page_preview=True,
         )
@@ -2040,7 +2161,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usage_hint = ""
         if not premium["is_premium"]:
             usage = get_free_usage(user_id)
-            usage_hint = f"\n🆓 Free analyses remaining: {usage['analyses_left']}/{FREE_ANALYSIS_LIMIT}\n"
+            if usage['analyses_left'] > 0:
+                usage_hint = f"\n\u2705 You have {usage['analyses_left']} analysis available\n"
+            else:
+                usage_hint = f"\n\U0001f4fa Watch an ad below to unlock 1 analysis\n"
 
         await query.edit_message_text(
             f"{get_text('btn_start_analyzing', lang)}\n\n"
@@ -2084,14 +2208,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(f"❌ Error: {token_data['error']}")
                 return
 
-            rug_data = get_rugcheck_info(token_address)
-            if "error" in rug_data:
-                rug_data = {
-                    "risk_score": None, "risk_level": "UNKNOWN", "risk_emoji": "⚪",
-                    "risks": [], "top_holders": [], "total_insider_pct": 0,
-                    "total_top10_pct": 0,
-                    "mint_authority": None, "freeze_authority": None, "is_mutable": None,
-                }
+            # Use cached rug_data if available, otherwise fetch
+            rug_data = context.user_data.get("current_rug_data")
+            if not rug_data:
+                rug_data = get_rugcheck_info(token_address)
+                if "error" in rug_data:
+                    rug_data = {
+                        "risk_score": None, "risk_level": "UNKNOWN", "risk_emoji": "⚪",
+                        "risks": [], "top_holders": [], "total_insider_pct": 0,
+                        "total_top10_pct": 0,
+                        "mint_authority": None, "freeze_authority": None, "is_mutable": None,
+                    }
 
             report = analyze_token(token_data, rug_data)
             increment_analysis(user_id)
@@ -2217,7 +2344,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usage_hint = ""
         if not premium["is_premium"]:
             usage = get_free_usage(user_id)
-            usage_hint = f"\n🆓 Free alarms remaining: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n"
+            usage_hint = f"\n\u23f0 Free alarms remaining: {usage['alarms_left']}/{FREE_ALARM_LIMIT}\n"
 
         await query.edit_message_text(
             f"⏰ SET PRICE ALARM\n"
@@ -2844,8 +2971,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Full support for 15 languages including Turkish, Spanish, Chinese and more.\n\n"
             "📊 Advanced Charting ✅\n"
             "Professional price charts inside Telegram.\n\n"
-            "🆓 Free Tier System ✅\n"
-            f"{FREE_ANALYSIS_LIMIT} free analyses + {FREE_ALARM_LIMIT} free alarms for new users.\n\n"
+            "📺 Ad-Powered Free Access ✅\n"
+            "Watch 1 ad/day to unlock 1 free analysis.\n\n"
             "\U0001f4ac Feedback System \u2705\n"
             "Send feedback directly to the team.\n\n"
             "\U0001f50d Smart Money Wallet Tracker \u2705\n"
@@ -3412,15 +3539,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             change_24h = float(token_data.get("price_change_24h", 0) or 0)
             change_emoji = "🟢" if change_24h >= 0 else "🔴"
 
+            # Fetch rug data for quick score
+            try:
+                rug_data = get_rugcheck_info(token_address)
+                if "error" in rug_data:
+                    rug_data = {"risk_score": None, "risk_level": "UNKNOWN", "risks": [],
+                                "top_holders": [], "total_insider_pct": 0, "total_top10_pct": 0,
+                                "mint_authority": None, "freeze_authority": None, "is_mutable": None}
+            except Exception:
+                rug_data = {"risk_score": None, "risk_level": "UNKNOWN", "risks": [],
+                            "top_holders": [], "total_insider_pct": 0, "total_top10_pct": 0,
+                            "mint_authority": None, "freeze_authority": None, "is_mutable": None}
+
+            quick_score_text = compute_quick_score(token_data, rug_data)
+
             context.user_data["current_token_address"] = token_address
             context.user_data["current_token_name"] = token_name
             context.user_data["current_token_symbol"] = token_symbol
             context.user_data["current_token_price"] = price_usd
             context.user_data["current_token_price_float"] = float(price_usd) if price_usd else 0
             context.user_data["current_token_data"] = token_data
+            context.user_data["current_rug_data"] = rug_data
 
             kb = [
-                [InlineKeyboardButton("Start Analysis \u2666\ufe0f", callback_data="action_analysis")],
+                [InlineKeyboardButton("Full Analysis \u2666\ufe0f", callback_data="action_analysis")],
                 [InlineKeyboardButton(get_text('btn_chart', lang), callback_data="action_chart")],
                 [InlineKeyboardButton("Set Price Alarm \u2666\ufe0f", callback_data="action_alarm")],
                 [InlineKeyboardButton("Whale Alert \u2663\ufe0f", callback_data="action_whale")],
@@ -3435,7 +3577,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📌 {token_name} (${token_symbol})\n"
                 f"💰 Price: ${price_usd}\n"
                 f"📊 Market Cap: {mcap_str}\n"
-                f"📈 24h: {change_emoji} {change_24h:+.2f}%\n\n"
+                f"📈 24h: {change_emoji} {change_24h:+.2f}%"
+                f"{quick_score_text}\n\n"
                 f"{get_text('what_to_do', lang)}",
                 reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True,
             )
