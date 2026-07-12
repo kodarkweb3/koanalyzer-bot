@@ -199,6 +199,9 @@
       ],
       "2026-07-07": [
         "2091050048"
+      ],
+      "2026-07-12": [
+        "6469663868"
       ]
     }
   },
@@ -1708,5 +1711,25 @@
     ],
     "last_analysis": "2026-07-07T00:07:56.486722",
     "lang": "ar"
+  },
+  "6469663868": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-07-12T12:13:35.208327",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-07-12T12:13:35.208319",
+    "username": "adsgramsupport",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-07-12T12:13:35.208319"
+      }
+    ]
   }
 }
