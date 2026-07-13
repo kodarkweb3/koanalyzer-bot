@@ -1,5 +1,5 @@
 """
-kodark.io - Solana Memecoins Analyzer Bot v5.6
+kodark.io - Solana Memecoins Analyzer Bot v5.8
 Whale Watch | Holder Analysis | Risk Assessment | Price Alarms
 Auto-Sniper Alerts | Multi-Language | Advanced Charting
 Smart Money Wallet Tracker | Daily Market Summary | Trending Top 10
@@ -125,7 +125,9 @@ DAILY_SUMMARY_HOUR = 9  # UTC hour to send daily summary
 DAILY_SUMMARY_ENABLED = True
 
 # ==================== ADSGRAM & CHANNEL ====================
-ADSGRAM_BLOCK_ID = "bot-38106"
+ADSGRAM_BLOCK_ID = "38106"  # Numeric only (without 'bot-' prefix)
+ADSGRAM_TOKEN = os.getenv("ADSGRAM_TOKEN", "")  # Partner token from adsgram.ai profile
+ADSGRAM_API_URL = "https://api.adsgram.ai/advbot"
 TELEGRAM_CHANNEL = "@kodarkio"
 TELEGRAM_CHANNEL_URL = "https://t.me/kodarkio"
 AD_REWARD_ANALYSES = 1  # Extra free analyses per ad watched
@@ -511,6 +513,63 @@ def increment_alarm_count(user_id: int):
 
 
 # ==================== ADSGRAM AD REWARD ====================
+
+async def show_adsgram_ad(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Fetch an ad from Adsgram API and send it to user. Returns True if ad was shown."""
+    if not ADSGRAM_TOKEN:
+        logger.warning("ADSGRAM_TOKEN not set, cannot show ads")
+        return False
+
+    try:
+        url = f"{ADSGRAM_API_URL}?tgid={user_id}&blockid={ADSGRAM_BLOCK_ID}&language=en&token={ADSGRAM_TOKEN}"
+        resp = http_requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            logger.error(f"Adsgram API error: {resp.status_code} - {resp.text[:200]}")
+            return False
+
+        ad_data = resp.json()
+        text_html = ad_data.get("text_html", "")
+        image_url = ad_data.get("image_url", "")
+        click_url = ad_data.get("click_url", "")
+        button_name = ad_data.get("button_name", "View Ad")
+        reward_url = ad_data.get("reward_url", "")
+        button_reward_name = ad_data.get("button_reward_name", "Claim Reward")
+
+        # Build inline keyboard
+        kb = []
+        if click_url and button_name:
+            kb.append([InlineKeyboardButton(button_name, url=click_url)])
+        if reward_url and button_reward_name:
+            kb.append([InlineKeyboardButton(f"\u2705 {button_reward_name}", url=reward_url)])
+        kb.append([InlineKeyboardButton("\U0001f381 Claim Free Analysis", callback_data="claim_ad_reward")])
+
+        markup = InlineKeyboardMarkup(kb)
+
+        if image_url:
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=image_url,
+                caption=text_html if text_html else "\U0001f4fa Sponsored Ad\n\nWatch this ad and tap 'Claim Free Analysis' to get +1 analysis!",
+                parse_mode="HTML",
+                reply_markup=markup,
+                protect_content=True,
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=text_html if text_html else "\U0001f4fa Sponsored Ad\n\nTap the button below and then 'Claim Free Analysis' to get +1 analysis!",
+                parse_mode="HTML",
+                reply_markup=markup,
+                disable_web_page_preview=False,
+                protect_content=True,
+            )
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Adsgram ad show error: {e}")
+        return False
+
 
 def grant_ad_reward(user_id: int) -> tuple:
     """Grant ad reward to user. Returns (success: bool, message: str)."""
@@ -1353,15 +1412,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        success, msg = grant_ad_reward(user_id)
-        emoji = "\U0001f381" if success else "\u26a0\ufe0f"
-        kb = build_start_keyboard(False, lang)
-        await update.message.reply_text(
-            f"{emoji} {msg}\n\n"
-            f"\U0001f50d Tap START ANALYZING to use your analysis!",
-            reply_markup=kb,
-            disable_web_page_preview=True,
-        )
+        # Try to show actual ad first
+        ad_shown = await show_adsgram_ad(user_id, context)
+        if not ad_shown:
+            # Fallback: grant reward directly
+            success, msg = grant_ad_reward(user_id)
+            emoji = "\U0001f381" if success else "\u26a0\ufe0f"
+            kb = build_start_keyboard(False, lang)
+            await update.message.reply_text(
+                f"{emoji} {msg}\n\n"
+                f"\U0001f50d Tap START ANALYZING to use your analysis!",
+                reply_markup=kb,
+                disable_web_page_preview=True,
+            )
         return
 
     premium = get_user_premium_status(user_id)
@@ -2151,7 +2214,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
-                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url=f"https://t.me/KoAnalyzerBot?start=adreward")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", callback_data="watch_ad")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2187,7 +2250,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
-                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url=f"https://t.me/KoAnalyzerBot?start=adreward")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", callback_data="watch_ad")],
                 [InlineKeyboardButton(get_text('btn_home', lang), callback_data="home")],
             ]
             await query.edit_message_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -2594,6 +2657,62 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = _build_premium_text(premium, user_id)
         kb = _build_premium_keyboard(premium)
         await query.edit_message_text(text, reply_markup=kb, disable_web_page_preview=True)
+
+    elif query.data == "watch_ad":
+        # Show Adsgram ad to user
+        premium = get_user_premium_status(user_id)
+        if premium["is_premium"]:
+            await query.answer("\u2705 You already have Premium!", show_alert=True)
+            return
+
+        # Check daily limit first
+        usage = get_free_usage(user_id)
+        data = load_user_data()
+        user_str = str(user_id)
+        user = data.get(user_str, {})
+        today = datetime.now().strftime("%Y-%m-%d")
+        ads_today = user.get("ad_rewards_today", 0) if user.get("ad_last_reward_date") == today else 0
+        if ads_today >= MAX_AD_REWARDS_PER_DAY:
+            await query.answer("\u26a0\ufe0f You already used your daily free analysis. Come back tomorrow!", show_alert=True)
+            return
+
+        await query.answer("\U0001f4fa Loading ad...", show_alert=False)
+
+        # Try to show Adsgram ad
+        ad_shown = await show_adsgram_ad(user_id, context)
+        if not ad_shown:
+            # Fallback: grant reward directly if ad service unavailable
+            success, msg = grant_ad_reward(user_id)
+            emoji = "\U0001f381" if success else "\u26a0\ufe0f"
+            kb = [[InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
+                  [InlineKeyboardButton("Main Menu", callback_data="home")]]
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"{emoji} {msg}\n\n\U0001f50d Tap START ANALYZING to use your analysis!",
+                reply_markup=InlineKeyboardMarkup(kb),
+                disable_web_page_preview=True,
+            )
+
+    elif query.data == "claim_ad_reward":
+        # User clicked "Claim Free Analysis" after viewing ad
+        premium = get_user_premium_status(user_id)
+        if premium["is_premium"]:
+            await query.answer("\u2705 You already have Premium!", show_alert=True)
+            return
+
+        success, msg = grant_ad_reward(user_id)
+        if success:
+            await query.answer("\U0001f381 +1 Analysis unlocked!", show_alert=True)
+            kb = [[InlineKeyboardButton("START ANALYZING \U0001f0cf", callback_data="start_analyzing")],
+                  [InlineKeyboardButton("Main Menu", callback_data="home")]]
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"\U0001f381 {msg}\n\n\U0001f50d Tap START ANALYZING to use your analysis!",
+                reply_markup=InlineKeyboardMarkup(kb),
+                disable_web_page_preview=True,
+            )
+        else:
+            await query.answer(f"\u26a0\ufe0f {msg}", show_alert=True)
 
     elif query.data == "buy_premium":
         # Show payment method selection
@@ -3507,7 +3626,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
-                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url="https://t.me/KoAnalyzerBot?start=adreward")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", callback_data="watch_ad")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
@@ -3594,7 +3713,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if paywall:
             kb = [
                 [InlineKeyboardButton("\U0001f4b3 Choose Payment Method", callback_data="buy_premium")],
-                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", url="https://t.me/KoAnalyzerBot?start=adreward")],
+                [InlineKeyboardButton("\U0001f4fa Watch Ad = +1 Free Analysis", callback_data="watch_ad")],
                 [InlineKeyboardButton("Main Menu", callback_data="home")],
             ]
             await update.message.reply_text(paywall, reply_markup=InlineKeyboardMarkup(kb), disable_web_page_preview=True)
