@@ -1667,7 +1667,10 @@
         "time": "2026-07-14T00:54:21.520041"
       }
     ],
-    "last_analysis": "2026-07-03T15:28:57.049473"
+    "last_analysis": "2026-07-03T15:28:57.049473",
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-07-14",
+    "ad_bonus_analyses": 1
   },
   "8372219798": {
     "premium": false,
