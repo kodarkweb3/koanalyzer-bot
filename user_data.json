@@ -1637,8 +1637,8 @@
     "last_analysis": "2026-07-01T09:29:00.278081"
   },
   "1401679481": {
-    "premium": false,
-    "premium_until": null,
+    "premium": true,
+    "premium_until": "2026-09-12T01:02:23.660940",
     "analysis_count": 4,
     "alarm_count": 0,
     "paid_premium": false,
