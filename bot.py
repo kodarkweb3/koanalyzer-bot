@@ -1386,7 +1386,7 @@ def build_start_keyboard(is_premium: bool, lang: str = "en") -> InlineKeyboardMa
         [InlineKeyboardButton("Language \U0001f310", callback_data="language_menu")],
         [InlineKeyboardButton("Roadmap \U0001f5fa", callback_data="roadmap")],
         [InlineKeyboardButton("Feedback \U0001f4ac", callback_data="feedback_start")],
-        [InlineKeyboardButton("Our Channel \U0001f4e2", url=TELEGRAM_CHANNEL_URL)],
+        [InlineKeyboardButton("Stay Tuned for Updates \U0001f4e2", url=TELEGRAM_CHANNEL_URL)],
     ]
     return InlineKeyboardMarkup(keyboard)
 
