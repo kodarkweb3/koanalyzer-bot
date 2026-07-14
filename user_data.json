@@ -1641,7 +1641,7 @@
     "premium_until": "2026-09-12T01:02:23.660940",
     "analysis_count": 4,
     "alarm_count": 0,
-    "paid_premium": false,
+    "paid_premium": true,
     "joined": "2026-07-02T10:21:24.327178",
     "watchlist": [],
     "last_active": "2026-07-14T00:59:02.365625",
@@ -1671,7 +1671,13 @@
     "last_analysis": "2026-07-14T00:55:33.333296",
     "ad_rewards_today": 1,
     "ad_last_reward_date": "2026-07-14",
-    "ad_bonus_analyses": 1
+    "ad_bonus_analyses": 1,
+    "last_sol_payment": {
+      "plan": "sol_1m",
+      "sol_amount": 0.2456,
+      "date": "2026-07-14T01:02:24.719216",
+      "campaign_bonus": true
+    }
   },
   "8372219798": {
     "premium": false,
