@@ -42,7 +42,7 @@
   },
   "__stats__": {
     "total_analyses": 38,
-    "total_payments": 0,
+    "total_payments": 1,
     "daily_analyses": {
       "2026-06-11": 1,
       "2026-06-13": 2,
@@ -1644,13 +1644,9 @@
     "paid_premium": true,
     "joined": "2026-07-02T10:21:24.327178",
     "watchlist": [],
-    "last_active": "2026-07-14T00:59:02.365625",
+    "last_active": "2026-07-14T01:02:25.727824",
     "username": "Tomras61",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-07-14T00:54:21.520041"
-      },
       {
         "type": "message",
         "time": "2026-07-14T00:54:54.390676"
@@ -1666,6 +1662,10 @@
       {
         "type": "message",
         "time": "2026-07-14T00:59:02.365625"
+      },
+      {
+        "type": "payment",
+        "time": "2026-07-14T01:02:25.727824"
       }
     ],
     "last_analysis": "2026-07-14T00:55:33.333296",
