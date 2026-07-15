@@ -6,7 +6,7 @@
       "plan": null
     },
     "premium_until": null,
-    "analysis_count": 4,
+    "analysis_count": 5,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-06-11T08:40:45.037469",
@@ -34,7 +34,7 @@
         "time": "2026-07-15T20:10:39.753200"
       }
     ],
-    "last_analysis": "2026-06-16T14:30:58.850801",
+    "last_analysis": "2026-07-15T20:11:06.144396",
     "lang": "tr",
     "ad_rewards_today": 1,
     "ad_last_reward_date": "2026-07-15",
