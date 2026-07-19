@@ -997,7 +997,7 @@
   "7880076765": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 1,
     "paid_premium": false,
     "joined": "2026-06-16T13:59:22.109815",
@@ -1028,7 +1028,8 @@
     ],
     "ad_rewards_today": 1,
     "ad_last_reward_date": "2026-07-19",
-    "ad_bonus_analyses": 1
+    "ad_bonus_analyses": 1,
+    "last_analysis": "2026-07-19T09:08:54.815786"
   },
   "6370032519": {
     "premium": false,
