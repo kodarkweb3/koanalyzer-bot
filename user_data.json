@@ -1025,7 +1025,10 @@
         "type": "message",
         "time": "2026-07-19T08:18:04.301810"
       }
-    ]
+    ],
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-07-19",
+    "ad_bonus_analyses": 1
   },
   "6370032519": {
     "premium": false,
