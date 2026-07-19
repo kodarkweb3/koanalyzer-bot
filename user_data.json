@@ -1770,5 +1770,17 @@
         "time": "2026-07-12T12:13:35.208319"
       }
     ]
+  },
+  "7726585584": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-07-19T16:38:50.307568",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null
   }
 }
