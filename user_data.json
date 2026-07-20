@@ -66,12 +66,6 @@
       "2026-07-19": 5
     },
     "daily_users": {
-      "2026-06-14": [
-        "2043981845",
-        "1076744907",
-        "6953270267",
-        "7782447775"
-      ],
       "2026-06-15": [
         "5058652541",
         "6309947854",
@@ -224,6 +218,9 @@
       "2026-07-19": [
         "1401679481",
         "7880076765"
+      ],
+      "2026-07-20": [
+        "7803017468"
       ]
     }
   },
@@ -1782,5 +1779,25 @@
     "ad_bonus_analyses": 0,
     "ad_rewards_today": 0,
     "ad_last_reward_date": null
+  },
+  "7803017468": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-07-20T15:59:55.690857",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-07-20T15:59:55.690843",
+    "username": "Notinvy",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-07-20T15:59:55.690843"
+      }
+    ]
   }
 }
