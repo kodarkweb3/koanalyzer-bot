@@ -1788,9 +1788,9 @@
     "paid_premium": false,
     "joined": "2026-07-20T15:59:55.690857",
     "watchlist": [],
-    "ad_bonus_analyses": 0,
-    "ad_rewards_today": 0,
-    "ad_last_reward_date": null,
+    "ad_bonus_analyses": 1,
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-07-20",
     "last_active": "2026-07-20T15:59:55.690843",
     "username": "Notinvy",
     "activity_log": [
