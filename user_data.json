@@ -1634,13 +1634,9 @@
     "paid_premium": true,
     "joined": "2026-07-02T10:21:24.327178",
     "watchlist": [],
-    "last_active": "2026-07-26T03:34:39.926794",
+    "last_active": "2026-07-26T19:53:47.445687",
     "username": "Tomras61",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-07-25T23:53:55.258585"
-      },
       {
         "type": "message",
         "time": "2026-07-25T23:53:56.194537"
@@ -1656,6 +1652,10 @@
       {
         "type": "analysis",
         "time": "2026-07-26T03:34:39.926794"
+      },
+      {
+        "type": "message",
+        "time": "2026-07-26T19:53:47.445687"
       }
     ],
     "last_analysis": "2026-07-26T03:34:39.002588",
