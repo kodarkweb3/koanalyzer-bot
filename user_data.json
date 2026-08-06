@@ -74,11 +74,6 @@
       "2026-08-03": 1
     },
     "daily_users": {
-      "2026-06-27": [
-        "7791483699",
-        "1087968824",
-        "7880076765"
-      ],
       "2026-06-29": [
         "7380238551",
         "2121285435",
@@ -182,6 +177,9 @@
       ],
       "2026-08-03": [
         "1401679481"
+      ],
+      "2026-08-06": [
+        "1869361388"
       ]
     }
   },
@@ -1782,6 +1780,26 @@
       {
         "type": "visit",
         "time": "2026-07-28T02:24:42.437006"
+      }
+    ]
+  },
+  "1869361388": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-06T02:56:14.840995",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-06T02:56:14.840988",
+    "username": "ihtiyar51",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-06T02:56:14.840988"
       }
     ]
   }
