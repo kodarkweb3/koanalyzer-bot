@@ -1281,7 +1281,10 @@
         "days": 30,
         "date": "2026-06-23T10:55:49.406137"
       }
-    ]
+    ],
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-08-07",
+    "ad_bonus_analyses": 1
   },
   "7145842711": {
     "premium": false,
