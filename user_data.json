@@ -75,10 +75,6 @@
       "2026-08-07": 1
     },
     "daily_users": {
-      "2026-06-30": [
-        "8235757797",
-        "7924651060"
-      ],
       "2026-07-01": [
         "8472326523",
         "6733011841"
@@ -179,6 +175,9 @@
       ],
       "2026-08-07": [
         "6017880232"
+      ],
+      "2026-08-09": [
+        "1548781447"
       ]
     }
   },
@@ -1802,6 +1801,26 @@
       {
         "type": "visit",
         "time": "2026-08-06T02:56:14.840988"
+      }
+    ]
+  },
+  "1548781447": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-09T02:29:51.445048",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-09T02:29:51.445042",
+    "username": "illfro",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-09T02:29:51.445042"
       }
     ]
   }
