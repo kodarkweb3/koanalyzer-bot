@@ -177,7 +177,8 @@
         "1087968824"
       ],
       "2026-08-10": [
-        "927038021"
+        "927038021",
+        "5134605998"
       ]
     }
   },
@@ -1841,6 +1842,26 @@
       {
         "type": "visit",
         "time": "2026-08-10T06:56:41.392177"
+      }
+    ]
+  },
+  "5134605998": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-10T15:37:50.130446",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-10T15:37:50.130439",
+    "username": "okifii",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-10T15:37:50.130439"
       }
     ]
   }
