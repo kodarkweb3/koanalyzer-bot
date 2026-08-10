@@ -75,10 +75,6 @@
       "2026-08-07": 1
     },
     "daily_users": {
-      "2026-07-01": [
-        "8472326523",
-        "6733011841"
-      ],
       "2026-07-02": [
         "1401679481",
         "6646602626",
@@ -179,6 +175,9 @@
       "2026-08-09": [
         "1548781447",
         "1087968824"
+      ],
+      "2026-08-10": [
+        "927038021"
       ]
     }
   },
@@ -1822,6 +1821,26 @@
       {
         "type": "visit",
         "time": "2026-08-09T02:29:51.445042"
+      }
+    ]
+  },
+  "927038021": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-10T06:56:41.392189",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-10T06:56:41.392177",
+    "username": "TomazTesten",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-10T06:56:41.392177"
       }
     ]
   }
