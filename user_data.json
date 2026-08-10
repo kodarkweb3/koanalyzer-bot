@@ -1853,9 +1853,9 @@
     "paid_premium": false,
     "joined": "2026-08-10T15:37:50.130446",
     "watchlist": [],
-    "ad_bonus_analyses": 0,
-    "ad_rewards_today": 0,
-    "ad_last_reward_date": null,
+    "ad_bonus_analyses": 1,
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-08-10",
     "last_active": "2026-08-10T15:37:55.701522",
     "username": "okifii",
     "activity_log": [
