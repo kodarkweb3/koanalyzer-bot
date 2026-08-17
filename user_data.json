@@ -76,10 +76,6 @@
       "2026-08-15": 1
     },
     "daily_users": {
-      "2026-07-06": [
-        "1087968824",
-        "2091050048"
-      ],
       "2026-07-07": [
         "2091050048"
       ],
@@ -182,6 +178,9 @@
       ],
       "2026-08-16": [
         "2043981845"
+      ],
+      "2026-08-17": [
+        "6649766585"
       ]
     }
   },
@@ -1897,6 +1896,26 @@
       {
         "type": "message",
         "time": "2026-08-15T09:59:25.297970"
+      }
+    ]
+  },
+  "6649766585": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-17T19:11:53.727078",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-17T19:11:53.727073",
+    "username": "josiasavila_lbank",
+    "activity_log": [
+      {
+        "type": "message",
+        "time": "2026-08-17T19:11:53.727073"
       }
     ]
   }
