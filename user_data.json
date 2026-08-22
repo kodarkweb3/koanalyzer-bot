@@ -76,9 +76,6 @@
       "2026-08-15": 1
     },
     "daily_users": {
-      "2026-07-13": [
-        "2043981845"
-      ],
       "2026-07-14": [
         "1401679481",
         "2043981845"
@@ -181,6 +178,9 @@
       ],
       "2026-08-20": [
         "1087968824"
+      ],
+      "2026-08-22": [
+        "2127830439"
       ]
     }
   },
@@ -1940,6 +1940,26 @@
       {
         "type": "visit",
         "time": "2026-08-19T06:11:53.282328"
+      }
+    ]
+  },
+  "2127830439": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-22T15:49:38.585174",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-22T15:49:38.585167",
+    "username": "He",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-22T15:49:38.585167"
       }
     ]
   }
