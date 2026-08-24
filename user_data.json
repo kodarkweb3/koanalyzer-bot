@@ -1966,7 +1966,7 @@
   "6596614968": {
     "premium": false,
     "premium_until": null,
-    "analysis_count": 0,
+    "analysis_count": 1,
     "alarm_count": 0,
     "paid_premium": false,
     "joined": "2026-08-24T11:24:34.051244",
@@ -1985,6 +1985,7 @@
         "type": "message",
         "time": "2026-08-24T11:25:25.281820"
       }
-    ]
+    ],
+    "last_analysis": "2026-08-24T11:25:51.912942"
   }
 }
