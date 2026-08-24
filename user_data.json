@@ -1111,13 +1111,9 @@
     "paid_premium": false,
     "joined": "2026-06-18T19:02:41.705214",
     "watchlist": [],
-    "last_active": "2026-08-24T21:53:23.107298",
+    "last_active": "2026-08-24T21:55:32.592098",
     "username": "GroupAnonymousBot",
     "activity_log": [
-      {
-        "type": "message",
-        "time": "2026-08-09T08:28:32.826241"
-      },
       {
         "type": "visit",
         "time": "2026-08-14T23:34:53.925786"
@@ -1133,6 +1129,10 @@
       {
         "type": "message",
         "time": "2026-08-24T21:53:23.107298"
+      },
+      {
+        "type": "message",
+        "time": "2026-08-24T21:55:32.592098"
       }
     ]
   },
