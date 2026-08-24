@@ -179,7 +179,8 @@
         "2127830439"
       ],
       "2026-08-24": [
-        "2043981845"
+        "2043981845",
+        "6596614968"
       ]
     }
   },
@@ -1959,6 +1960,26 @@
       {
         "type": "visit",
         "time": "2026-08-22T15:49:38.585167"
+      }
+    ]
+  },
+  "6596614968": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-24T11:24:34.051244",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-24T11:24:34.051239",
+    "username": "Wannaplywithme",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-24T11:24:34.051239"
       }
     ]
   }
