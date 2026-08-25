@@ -1618,7 +1618,7 @@
   "1401679481": {
     "premium": true,
     "premium_until": "2026-09-12T01:02:23.660940",
-    "analysis_count": 47,
+    "analysis_count": 48,
     "alarm_count": 0,
     "paid_premium": true,
     "joined": "2026-07-02T10:21:24.327178",
@@ -1647,7 +1647,7 @@
         "time": "2026-08-25T06:04:35.980337"
       }
     ],
-    "last_analysis": "2026-08-15T11:05:07.914503",
+    "last_analysis": "2026-08-25T06:04:50.474316",
     "ad_rewards_today": 1,
     "ad_last_reward_date": "2026-07-14",
     "ad_bonus_analyses": 1,
