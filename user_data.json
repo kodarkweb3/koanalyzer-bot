@@ -2036,12 +2036,16 @@
     "ad_bonus_analyses": 0,
     "ad_rewards_today": 0,
     "ad_last_reward_date": null,
-    "last_active": "2026-08-28T11:44:11.070531",
+    "last_active": "2026-08-28T11:44:26.680133",
     "username": "Web3Shinagam",
     "activity_log": [
       {
         "type": "visit",
         "time": "2026-08-28T11:44:11.070531"
+      },
+      {
+        "type": "message",
+        "time": "2026-08-28T11:44:26.680133"
       }
     ]
   }
