@@ -76,10 +76,6 @@
       "2026-08-25": 1
     },
     "daily_users": {
-      "2026-07-18": [
-        "1401679481",
-        "7880076765"
-      ],
       "2026-07-19": [
         "1401679481",
         "7880076765"
@@ -179,6 +175,9 @@
       "2026-08-27": [
         "8390735514",
         "2043981845"
+      ],
+      "2026-08-28": [
+        "7019854200"
       ]
     }
   },
@@ -2023,6 +2022,26 @@
       {
         "type": "visit",
         "time": "2026-08-27T02:50:50.015686"
+      }
+    ]
+  },
+  "7019854200": {
+    "premium": false,
+    "premium_until": null,
+    "analysis_count": 0,
+    "alarm_count": 0,
+    "paid_premium": false,
+    "joined": "2026-08-28T11:44:11.070541",
+    "watchlist": [],
+    "ad_bonus_analyses": 0,
+    "ad_rewards_today": 0,
+    "ad_last_reward_date": null,
+    "last_active": "2026-08-28T11:44:11.070531",
+    "username": "Web3Shinagam",
+    "activity_log": [
+      {
+        "type": "visit",
+        "time": "2026-08-28T11:44:11.070531"
       }
     ]
   }
