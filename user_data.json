@@ -1229,7 +1229,7 @@
     "paid_premium": false,
     "joined": "2026-06-21T15:27:29.005357",
     "watchlist": [],
-    "last_active": "2026-08-30T08:46:42.193368",
+    "last_active": "2026-08-30T08:47:44.045322",
     "username": "Thegeneral349",
     "activity_log": [
       {
@@ -1243,6 +1243,10 @@
       {
         "type": "visit",
         "time": "2026-08-30T08:46:42.193368"
+      },
+      {
+        "type": "message",
+        "time": "2026-08-30T08:47:44.045322"
       }
     ],
     "ad_rewards_today": 1,
