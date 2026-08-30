@@ -1244,7 +1244,10 @@
         "type": "visit",
         "time": "2026-08-30T08:46:42.193368"
       }
-    ]
+    ],
+    "ad_rewards_today": 1,
+    "ad_last_reward_date": "2026-08-30",
+    "ad_bonus_analyses": 1
   },
   "6017880232": {
     "premium": false,
