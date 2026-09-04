@@ -2081,7 +2081,7 @@
     "ad_bonus_analyses": 0,
     "ad_rewards_today": 0,
     "ad_last_reward_date": null,
-    "last_active": "2026-09-04T10:57:26.458975",
+    "last_active": "2026-09-04T11:10:03.149499",
     "username": "Mana",
     "activity_log": [
       {
@@ -2091,6 +2091,10 @@
       {
         "type": "visit",
         "time": "2026-09-04T10:57:26.458975"
+      },
+      {
+        "type": "visit",
+        "time": "2026-09-04T11:10:03.149499"
       }
     ],
     "lang": "de"
